@@ -16,6 +16,7 @@
     columns: 'taskflow_columns',
     counter: 'taskflow_counter',
     theme: 'taskflow_theme',
+    authSession: 'taskflow_auth_session',
   };
 
   const SB_URL = 'https://izqmuktylbixzldbkzod.supabase.co/rest/v1/';
@@ -47,7 +48,7 @@
     { id: 'done', name: 'Concluído', color: '#10b981' },
   ];
 
-  const MAX_FILE_SIZE = 2 * 1024 * 1024;
+  const MAX_FILE_SIZE = 1 * 1024 * 1024;
   const MAX_FILES = 5;
 
   /* ═══════════════════════════════════════
@@ -60,6 +61,7 @@
   let filter = 'all';
   let moduleFilter = 'all';
   let clientFilter = 'all';
+  let searchQuery = '';
   let tkId = null;
   let selType = null;
   let selColor = null;
@@ -91,8 +93,11 @@
     headerStats: $('headerStats'),
     btnNewTicket: $('btnNewTicket'),
     btnManageColumns: $('btnManageColumns'),
+    btnManageUsers: $('btnManageUsers'),
     moduleFilter: $('moduleFilter'),
     clientFilter: $('clientFilter'),
+    searchInput: $('searchInput'),
+    searchClear: $('searchClear'),
     board: $('board'),
     detailModal: $('detailModal'),
     modalId: $('modalId'),
@@ -128,6 +133,15 @@
     columnName: $('columnName'),
     colorPicker: $('colorPicker'),
     btnSubmitColumn: $('btnSubmitColumn'),
+    userModal: $('userModal'),
+    userModalClose: $('userModalClose'),
+    newUserName: $('newUserName'),
+    newUserEmail: $('newUserEmail'),
+    newUserPassword: $('newUserPassword'),
+    newUserRole: $('newUserRole'),
+    userFormError: $('userFormError'),
+    btnSubmitUser: $('btnSubmitUser'),
+    registeredUsersList: $('registeredUsersList'),
     confirmDialog: $('confirmDialog'),
     confirmTitle: $('confirmTitle'),
     confirmText: $('confirmText'),
@@ -180,6 +194,7 @@
   const SB_API = SB_URL.endsWith('/') ? SB_URL : `${SB_URL}/rest/v1/`;
   const SB_PROJECT_URL = SB_URL.replace(/\/rest\/v1\/?$/, '');
   const SB_AUTH_API = `${SB_PROJECT_URL}/auth/v1`;
+  const SB_FUNCTIONS_API = `${SB_PROJECT_URL}/functions/v1`;
 
   async function sbRequest(path, options = {}) {
     const response = await fetch(`${SB_API}${path}`, {
@@ -214,18 +229,81 @@
       throw new Error(error.error_description || 'E-mail ou senha inválidos.');
     }
 
-    return response.json();
+    const session = await response.json();
+    localStorage.setItem(SK.authSession, JSON.stringify(session));
+    return session;
   }
 
   async function signOut() {
-    if (!authSession?.access_token) return;
-    await fetch(`${SB_AUTH_API}/logout`, {
+    if (authSession?.access_token) await fetch(`${SB_AUTH_API}/logout`, {
       method: 'POST',
       headers: {
         apikey: SB_KEY,
         Authorization: `Bearer ${authSession.access_token}`,
       },
     }).catch(() => {});
+    localStorage.removeItem(SK.authSession);
+  }
+
+  async function restoreSession() {
+    const storedSession = localStorage.getItem(SK.authSession);
+    if (!storedSession) return false;
+
+    try {
+      authSession = JSON.parse(storedSession);
+      const response = await fetch(`${SB_AUTH_API}/user`, {
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${authSession.access_token}`,
+        },
+      });
+      if (!response.ok && authSession.refresh_token) {
+        const refreshResponse = await fetch(`${SB_AUTH_API}/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: {
+            apikey: SB_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refresh_token: authSession.refresh_token }),
+        });
+        if (!refreshResponse.ok) throw new Error('Sessão expirada.');
+        authSession = await refreshResponse.json();
+        localStorage.setItem(SK.authSession, JSON.stringify(authSession));
+      } else if (!response.ok) {
+        throw new Error('Sessão expirada.');
+      }
+
+      const profiles = await sbRequest(
+        `profiles?id=eq.${encodeURIComponent(authSession.user.id)}&select=name,role`
+      );
+      const profile = profiles[0];
+      if (!profile) throw new Error('Perfil de usuário não encontrado.');
+
+      user = { name: profile.name, role: profile.role };
+      return true;
+    } catch (error) {
+      console.error(error);
+      authSession = null;
+      user = null;
+      localStorage.removeItem(SK.authSession);
+      return false;
+    }
+  }
+
+  async function createUserByAdmin(name, email, password, role) {
+    const response = await fetch(`${SB_FUNCTIONS_API}/create-user`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${authSession.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, email, password, role }),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Não foi possível cadastrar o colaborador.');
+    return result;
   }
 
   async function load() {
@@ -234,7 +312,7 @@
         sbRequest('columns?select=*&order=position.asc'),
         sbRequest('tickets?select=*'),
         sbRequest('comments?select=*'),
-        sbRequest('attachments?select=*'),
+        sbRequest('attachments?select=id,ticket_id,comment_id,name'),
       ]);
 
       columns = remoteColumns.length ? remoteColumns : [...DEFCOLS];
@@ -301,6 +379,27 @@
       ),
     });
   }
+
+  async function saveSingleTicket(ticket) {
+    await sbRequest('tickets', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({
+        id: ticket.id,
+        type: ticket.type,
+        title: ticket.title,
+        description: ticket.description,
+        module: ticket.module || null,
+        client: ticket.client || null,
+        priority: ticket.priority,
+        status: ticket.status,
+        author: ticket.author,
+        author_role: ticket.authorRole,
+        created_at: ticket.createdAt,
+        updated_at: ticket.updatedAt,
+      }),
+    });
+}
 
   async function saveC() {
     await sbRequest('columns?on_conflict=id', {
@@ -404,7 +503,7 @@
       reader.onload = async (e) => {
         let data = e.target.result;
         try {
-          data = await compressImage(data, 1200, 0.8);
+          data = await compressImage(data, 800, 0.6);
         } catch (err) { /* use original */ }
         target.push({ name: file.name, data });
         preview();
@@ -542,6 +641,69 @@
     D.roleTag.textContent = user.role === 'admin' ? 'Admin' : 'Usuário';
     D.roleTag.className = 'role-tag ' + user.role;
     D.btnManageColumns.style.display = user.role === 'admin' ? 'flex' : 'none';
+    D.btnManageUsers.style.display = user.role === 'admin' ? 'flex' : 'none';
+  }
+
+  async function loadRegisteredUsers() {
+    D.registeredUsersList.innerHTML = '<p class="registered-users-empty">Carregando colaboradores...</p>';
+    try {
+      const profiles = await sbRequest('profiles?select=id,name,role&order=name.asc');
+      if (!profiles.length) {
+        D.registeredUsersList.innerHTML = '<p class="registered-users-empty">Nenhum colaborador cadastrado.</p>';
+        return;
+      }
+      D.registeredUsersList.innerHTML = profiles
+        .map(
+          (profile) =>
+            `<div class="registered-user">
+              <span class="registered-user-name">${esc(profile.name)}</span>
+              <span class="role-tag ${profile.role}">${profile.role === 'admin' ? 'Admin' : 'Usuário'}</span>
+            </div>`
+        )
+        .join('');
+    } catch (error) {
+      console.error(error);
+      D.registeredUsersList.innerHTML = '<p class="registered-users-empty">Não foi possível carregar os colaboradores.</p>';
+    }
+  }
+
+  async function openUserModal() {
+    D.newUserName.value = '';
+    D.newUserEmail.value = '';
+    D.newUserPassword.value = '';
+    D.newUserRole.value = 'user';
+    D.userFormError.textContent = '';
+    D.userModal.classList.add('active');
+    await loadRegisteredUsers();
+  }
+
+  async function submitNewUser() {
+    const name = D.newUserName.value.trim();
+    const email = D.newUserEmail.value.trim();
+    const password = D.newUserPassword.value;
+    const role = D.newUserRole.value;
+
+    if (!name || !email || !password) {
+      D.userFormError.textContent = 'Preencha todos os campos.';
+      return;
+    }
+    if (password.length < 6) {
+      D.userFormError.textContent = 'A senha precisa ter pelo menos 6 caracteres.';
+      return;
+    }
+
+    D.btnSubmitUser.disabled = true;
+    D.userFormError.textContent = '';
+    try {
+      await createUserByAdmin(name, email, password, role);
+      D.userModal.classList.remove('active');
+      await loadRegisteredUsers();
+      toast('Colaborador cadastrado com sucesso!', 'success');
+    } catch (error) {
+      D.userFormError.textContent = error.message;
+    } finally {
+      D.btnSubmitUser.disabled = false;
+    }
   }
 
   /* ═══════════════════════════════════════
@@ -569,12 +731,18 @@
 
     columns.forEach((col, idx) => {
       const all = tickets.filter((t) => t.status === col.id);
-      const f = all.filter(
-        (ticket) =>
+      const q = (searchQuery || '').trim().toLowerCase();
+      const f = all.filter((ticket) => {
+        const baseFilter =
           (filter === 'all' || ticket.type === filter) &&
           (moduleFilter === 'all' || ticket.module === moduleFilter) &&
-          (clientFilter === 'all' || ticket.client === clientFilter)
-      );
+          (clientFilter === 'all' || ticket.client === clientFilter);
+        if (!baseFilter) return false;
+        if (!q) return true;
+        const fields = `${ticket.title || ''} ${ticket.description || ''} ${ticket.author || ''}`.toLowerCase();
+        const words = q.split(/\s+/).filter(Boolean);
+        return words.every((w) => fields.includes(w));
+      });
 
       const el = document.createElement('div');
       el.className = 'column';
@@ -845,7 +1013,7 @@
       if (t && t.status !== ns) {
         t.status = ns;
         t.updatedAt = new Date().toISOString();
-        saveT();
+        saveSingleTicket(t);
         renderBoard();
         const colName = columns.find((c) => c.id === ns)?.name || ns;
         toast(`Chamado #${t.id} → "${colName}"`, 'success');
@@ -906,6 +1074,9 @@
       return;
     }
 
+    D.btnSubmitTicket.disabled = true;
+    D.btnSubmitTicket.textContent = 'Salvando...';
+
     const tk = {
       id: String(tkCtr++).padStart(3, '0'),
       type: selType,
@@ -924,11 +1095,18 @@
     };
 
     tickets.unshift(tk);
-    saveT()
-      .then(() => saveAttachments(tk))
-      .catch((error) => {
+    saveSingleTicket(tk)
+    .then(() => saveAttachments(tk))
+    .catch((error) => {
         console.error(error);
         toast('Não foi possível salvar o chamado no Supabase.', 'error');
+    }).catch((error) => {
+        console.error(error);
+        toast('Não foi possível salvar o chamado no Supabase.', 'error');
+      })
+      .finally(() => {
+        D.btnSubmitTicket.disabled = false;
+        D.btnSubmitTicket.textContent = 'Criar Chamado';
       });
     renderBoard();
     D.newTicketModal.classList.remove('active');
@@ -991,24 +1169,30 @@
     // Attachments
     if (t.attachments && t.attachments.length > 0) {
       D.attachSection.style.display = 'block';
-      D.attachGrid.innerHTML = t.attachments
-        .map(
-          (a, i) =>
-            `<div class="attach-thumb" data-idx="${i}">
-              <img src="${a.data}" alt="${esc(a.name)}">
-            </div>`
-        )
-        .join('');
+      D.attachGrid.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">Carregando anexos...</p>';
+
+      sbRequest(`attachments?ticket_id=eq.${t.id}&comment_id=is.null&select=name,url`)
+    .then((remoteAttachments) => {
+      D.attachGrid.innerHTML = remoteAttachments
+        .map((a, i) =>
+          `<div class="attach-thumb" data-idx="${i}">
+            <img src="${a.url}" alt="${esc(a.name)}">
+          </div>`
+        ).join('');
 
       D.attachGrid.querySelectorAll('.attach-thumb').forEach((th) => {
         th.addEventListener('click', () => {
-          openLightbox(t.attachments[parseInt(th.dataset.idx)].data);
+          openLightbox(remoteAttachments[parseInt(th.dataset.idx)].url);
         });
       });
-    } else {
-      D.attachSection.style.display = 'none';
-      D.attachGrid.innerHTML = '';
-    }
+    })
+    .catch(() => {
+      D.attachGrid.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">Erro ao carregar anexos.</p>';
+    });
+} else {
+  D.attachSection.style.display = 'none';
+  D.attachGrid.innerHTML = '';
+}
 
     // Admin controls
     if (user.role === 'admin') {
@@ -1029,7 +1213,7 @@
           if (t.status !== ns) {
             t.status = ns;
             t.updatedAt = new Date().toISOString();
-            saveT();
+            saveSingleTicket(t);
             renderBoard();
             openDetail(id);
             const cn = columns.find((c) => c.id === ns)?.name || ns;
@@ -1099,8 +1283,8 @@
                 c.attachments?.length
                   ? `<div class="comment-attachments">${c.attachments
                       .map(
-                        (attachment) =>
-                          `<img src="${attachment.data}" alt="${esc(attachment.name)}" title="${esc(attachment.name)}">`
+                        (attachment, attachmentIndex) =>
+                          `<img src="${attachment.data}" alt="${esc(attachment.name)}" title="${esc(attachment.name)}" data-comment-index="${t.comments.indexOf(c)}" data-attachment-index="${attachmentIndex}">`
                       )
                       .join('')}</div>`
                   : ''
@@ -1109,6 +1293,14 @@
           </div>`;
       })
       .join('');
+
+    D.commentsList.querySelectorAll('[data-comment-index]').forEach((image) => {
+      image.addEventListener('click', () => {
+        const comment = t.comments[parseInt(image.dataset.commentIndex, 10)];
+        const attachment = comment?.attachments?.[parseInt(image.dataset.attachmentIndex, 10)];
+        if (attachment) openLightbox(attachment.data);
+      });
+    });
   }
 
   function submitComment() {
@@ -1130,7 +1322,7 @@
 
     const newComment = t.comments[t.comments.length - 1];
     t.updatedAt = new Date().toISOString();
-    Promise.all([saveT(), saveComment(t, newComment)]).catch((error) => {
+    Promise.all([saveSingleTicket(t), saveComment(t, newComment)]).catch((error) => {
       console.error(error);
       toast('Não foi possível salvar o comentário no Supabase.', 'error');
     });
@@ -1298,6 +1490,9 @@
     // Toolbar
     D.btnNewTicket.addEventListener('click', openNew);
     D.btnManageColumns.addEventListener('click', openColNew);
+    D.btnManageUsers.addEventListener('click', openUserModal);
+    D.userModalClose.addEventListener('click', () => D.userModal.classList.remove('active'));
+    D.btnSubmitUser.addEventListener('click', submitNewUser);
 
     // Filters
     document.querySelectorAll('.filter-btn').forEach((b) => {
@@ -1311,6 +1506,30 @@
       clientFilter = e.target.value;
       renderBoard();
     });
+
+    // Search box
+    if (D.searchInput) {
+      D.searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        renderBoard();
+      });
+      D.searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          searchQuery = '';
+          D.searchInput.value = '';
+          renderBoard();
+        }
+      });
+    }
+
+    if (D.searchClear) {
+      D.searchClear.addEventListener('click', () => {
+        searchQuery = '';
+        if (D.searchInput) D.searchInput.value = '';
+        if (D.searchInput) D.searchInput.focus();
+        renderBoard();
+      });
+    }
 
     // Detail modal
     D.modalClose.addEventListener('click', () => {
@@ -1379,8 +1598,15 @@
      BOOT
   ═══════════════════════════════════════ */
   async function boot() {
-    await load();
     bind();
+    const hasSession = await restoreSession();
+    await load();
+    if (hasSession) {
+      D.loginScreen.classList.add('hidden');
+      D.app.classList.add('active');
+      setupUI();
+      renderBoard();
+    }
   }
 
   boot();

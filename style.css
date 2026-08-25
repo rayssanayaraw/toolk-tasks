@@ -29,14 +29,15 @@
 }
 
 [data-theme='light'] {
-  --bg: #f3f6ed;
+  --bg: #f1f3f5;
   --bg-secondary: #ffffff;
   --surface: #ffffff;
-  --surface-hover: #eef4df;
-  --surface-border: #d4ddc2;
-  --text-primary: #18210f;
-  --text-secondary: #526044;
-  --text-muted: #78866c;
+  --surface-hover: #e8ecef;
+  --surface-border: #cbd2d9;
+  --text-primary: #17202a;
+  --text-secondary: #46515c;
+  --text-muted: #68737e;
+  --text-accent: #45601a;
   --purple-bg: rgba(139, 92, 246, 0.1);
   --shadow: 0 4px 24px rgba(34, 48, 16, 0.1);
   --shadow-lg: 0 12px 48px rgba(34, 48, 16, 0.16);
@@ -60,12 +61,6 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-[data-theme='light'] body::before {
-  background:
-    radial-gradient(ellipse at 15% 10%, rgba(182, 236, 68, 0.14) 0%, transparent 50%),
-    radial-gradient(ellipse at 85% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
-}
-
 body::before {
   content: '';
   position: fixed;
@@ -76,6 +71,12 @@ body::before {
     radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.03) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
+}
+
+[data-theme='light'] body::before {
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(182, 236, 68, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 80%, rgba(120, 135, 150, 0.06) 0%, transparent 50%);
 }
 
 /* ═══════════════════════════════════════
@@ -298,8 +299,8 @@ body::before {
 }
 
 .header-logo-img {
-  width: 28px;
-  height: 28px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   flex-shrink: 0;
 }
@@ -479,6 +480,62 @@ body::before {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Search box */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  padding: 6px 8px;
+  border-radius: 999px;
+}
+
+.search-box input[type="search"], .search-box input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  padding: 6px 8px;
+  outline: none;
+  width: 280px;
+  min-width: 120px;
+}
+
+.search-box input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.search-clear:hover {
+  background: rgba(255,255,255,0.03);
+  color: var(--text-primary);
+}
+
+.search-box input:focus {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+@media (max-width: 900px) {
+  .search-box input {
+    width: 180px;
+  }
 }
 
 .filter-btn {
@@ -843,7 +900,7 @@ body::before {
 .card-module {
   font-size: 0.72rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--text-accent, var(--accent));
   margin-bottom: 8px;
   white-space: nowrap;
   overflow: hidden;
@@ -1845,4 +1902,78 @@ body::before {
 [data-theme='light'] .header,
 [data-theme='light'] .column {
   background: rgba(255, 255, 255, 0.82);
+}
+
+.user-modal .modal {
+  width: 760px;
+  max-width: 94vw;
+}
+
+.user-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.85fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.user-form-fields .btn-submit-column {
+  margin-top: 8px;
+}
+
+.registered-users {
+  min-width: 0;
+}
+
+.registered-users-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.registered-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+}
+
+.registered-user-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.registered-users-empty {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.user-form-error {
+  min-height: 20px;
+  margin: 10px 0 4px;
+  color: var(--bug);
+  font-size: 0.84rem;
+  text-align: center;
+}
+
+@media (max-width: 680px) {
+  .user-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .registered-users {
+    padding-top: 20px;
+    border-top: 1px solid var(--surface-border);
+  }
 }
