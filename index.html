@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toolk Tasks — Sistema de Chamados</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════
+       LOGIN
+  ═══════════════════════════════════════ -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="login-logo">
+        <img src="midia/toolk_reduzida_nova.png" alt="Toolk" class="login-logo-img">
+        <h1>Toolk Tasks</h1>
+      </div>
+      <p class="login-subtitle">Sistema de Chamados — entre para continuar</p>
+      <div class="form-group">
+        <label for="loginName">E-mail</label>
+        <input type="email" id="loginName" placeholder="nome@email.com" autocomplete="username">
+      </div>
+      <div class="form-group password-group visible" id="passwordGroup" aria-hidden="false">
+        <label for="loginPassword">Senha</label>
+        <input type="password" id="loginPassword" placeholder="Digite sua senha" autocomplete="current-password">
+        <p class="password-hint">Se esqueceu vai chorar pra Rayssa.</p>
+      </div>
+      <button class="btn-login" id="btnLogin">Entrar</button>
+      <p class="login-error" id="loginError"></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       APP
+  ═══════════════════════════════════════ -->
+  <div class="app" id="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-left">
+        <div class="header-logo">
+          <img src="midia/toolk_nova_png-font-white.webp" alt="Toolk" class="header-logo-img">
+          <span>Tasks</span>
+        </div>
+        <div class="header-divider"></div>
+        <div class="header-stats" id="headerStats"></div>
+      </div>
+      <div class="header-right">
+        <div class="user-badge">
+          <div class="user-avatar" id="userAvatar"></div>
+          <span id="userName"></span>
+          <span class="role-tag" id="roleTag"></span>
+        </div>
+        <button class="btn-logout" id="btnLogout">Sair</button>
+      </div>
+    </header>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button class="filter-btn active" data-filter="all">Todos</button>
+        <button class="filter-btn" data-filter="bug">🐛 Bugs</button>
+        <button class="filter-btn" data-filter="improvement">✨ Melhorias</button>
+        <select class="filter-select" id="moduleFilter" aria-label="Filtrar por módulo">
+          <option value="all">Todos os módulos</option>
+          <option>Configurações</option>
+          <option>Administração</option>
+          <option>Avaliação de Perfil</option>
+          <option>Recrutamento e Seleção</option>
+          <option>Desempenho e Competências</option>
+          <option>PDI</option>
+          <option>Feedbacks</option>
+          <option>One-on-One</option>
+          <option>UCT</option>
+          <option>Qualidade de Vida</option>
+          <option>Toolk Forms</option>
+          <option>Meu R.H</option>
+          <option>Consulta Certificação</option>
+          <option>Premiação</option>
+          <option>Organograma</option>
+          <option>Outro</option>
+        </select>
+        <select class="filter-select" id="clientFilter" aria-label="Filtrar por empresa">
+          <option value="all">Todas as empresas</option>
+          <option>ACEVILLE</option>
+            <option>ACONCHEGO</option>
+            <option>ANALI SUPERMERCADO</option>
+            <option>ARAMEBRAS</option>
+            <option>ARAMEPAR</option>
+            <option>AUTOR CAPACITACAO</option>
+            <option>BDR</option>
+            <option>BIG SERVICE</option>
+            <option>BIO PARQUE</option>
+            <option>BOMPEL</option>
+            <option>ACEVILLE</option>
+            <option>CODIL</option>
+            <option>CONCEITO BRASIL ENGENHARIA</option>
+            <option>EXPRESSO SUL</option>
+            <option>FLOW</option>
+            <option>GESTRAN</option>
+            <option>GIDION</option>
+            <option>AÇOS</option>
+            <option>CAVALCA</option>
+            <option>EVL</option>
+            <option>IMPAR</option>
+            <option>INTERNACIONAL</option>
+            <option>ITAMEDI</option>
+            <option>LEGACY</option>
+            <option>LUMINA</option>
+            <option>MAXUP</option>
+            <option>PARQUE BRASIL</option>
+            <option>PASSEBUS</option>
+            <option>PRIMAVERAS</option>
+            <option>PSV SOLUTIONS</option>
+            <option>QUARTETTO</option>
+            <option>RAMO BH</option>
+            <option>RCE</option>
+            <option>RIZA</option>
+            <option>SEDA</option>
+            <option>SEKALOG</option>
+            <option>SERT GROUP</option>
+            <option>SOLUÇÕES SELANTES</option>
+            <option>TIME LIONS</option>
+            <option>TRANSGOBBI</option>
+            <option>TRANSTUSA</option>
+            <option>TRELITELAS</option>
+            <option>VEXILOM</option>
+            <option>VIAÇÃO VERDES MARES</option>
+            <option>Outro</option>
+        </select>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn-manage-columns" id="btnManageColumns" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+          </svg>
+          Colunas
+        </button>
+        <button class="btn-new-ticket" id="btnNewTicket">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Novo Chamado
+        </button>
+      </div>
+    </div>
+
+    <!-- BOARD -->
+    <div class="board" id="board"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       DETAIL MODAL
+  ═══════════════════════════════════════ -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <span class="card-id" id="modalId"></span>
+          <h2 class="modal-title" id="modalTitle"></h2>
+        </div>
+        <button class="modal-close" id="modalClose">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="admin-controls" id="adminControls">
+        <div class="admin-controls-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          Controles do Administrador
+        </div>
+        <div class="status-buttons" id="statusButtons"></div>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="modal-section-title">Descrição</div>
+          <p class="modal-description" id="modalDescription"></p>
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-title">Detalhes</div>
+          <div class="modal-details-grid" id="modalDetails"></div>
+        </div>
+        <div class="modal-section" id="attachmentsSection" style="display:none;">
+          <div class="modal-section-title">Anexos</div>
+          <div class="attachments-grid" id="attachmentsGrid"></div>
+        </div>
+      </div>
+
+      <div class="comments-section">
+        <div class="modal-section-title">Comentários</div>
+        <div id="commentsList"></div>
+        <div class="comment-input-area">
+          <textarea id="commentInput" placeholder="Escreva um comentário..." rows="1"></textarea>
+          <label class="comment-attach-btn" for="commentAttachInput" title="Anexar imagens">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+            <input type="file" id="commentAttachInput" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
+          </label>
+          <button class="btn-send-comment" id="btnSendComment">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="comment-attach-previews" id="commentAttachPreviews"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       NEW TICKET MODAL
+  ═══════════════════════════════════════ -->
+  <div class="modal-overlay new-ticket-modal" id="newTicketModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-header-info"><h2 class="modal-title">Novo Chamado</h2></div>
+        <button class="modal-close" id="newTicketClose">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Tipo</label>
+          <div class="type-selector">
+            <div class="type-option" data-type="bug" id="typeBug">
+              <div class="type-option-label">🐛 Bug</div>
+              <div class="type-option-desc">Algo não funciona</div>
+            </div>
+            <div class="type-option" data-type="improvement" id="typeImprovement">
+              <div class="type-option-label">✨ Melhoria</div>
+              <div class="type-option-desc">Sugestão de melhoria</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="ticketModule">Módulo</label>
+          <select id="ticketModule">
+            <option value="" selected>Selecione o módulo</option>
+            <option>Configurações</option>
+            <option>Administração</option>
+            <option>Avaliação de Perfil</option>
+            <option>Recrutamento e Seleção</option>
+            <option>Desempenho e Competências</option>
+            <option>PDI</option>
+            <option>Feedbacks</option>
+            <option>One-on-One</option>
+            <option>UCT</option>
+            <option>Qualidade de Vida</option>
+            <option>Toolk Forms</option>
+            <option>Meu R.H</option>
+            <option>Consulta Certificação</option>
+            <option>Premiação</option>
+            <option>Organograma</option>
+            <option>Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="ticketClient">Cliente</label>
+          <select id="ticketClient">
+            <option value="" selected>Selecione o cliente</option>
+            <option>ACEVILLE</option>
+            <option>ACONCHEGO</option>
+            <option>ANALI SUPERMERCADO</option>
+            <option>ARAMEBRAS</option>
+            <option>ARAMEPAR</option>
+            <option>AUTOR CAPACITACAO</option>
+            <option>BDR</option>
+            <option>BIG SERVICE</option>
+            <option>BIO PARQUE</option>
+            <option>BOMPEL</option>
+            <option>ACEVILLE</option>
+            <option>CODIL</option>
+            <option>CONCEITO BRASIL ENGENHARIA</option>
+            <option>EXPRESSO SUL</option>
+            <option>FLOW</option>
+            <option>GESTRAN</option>
+            <option>GIDION</option>
+            <option>AÇOS</option>
+            <option>CAVALCA</option>
+            <option>EVL</option>
+            <option>IMPAR</option>
+            <option>INTERNACIONAL</option>
+            <option>ITAMEDI</option>
+            <option>LEGACY</option>
+            <option>LUMINA</option>
+            <option>MAXUP</option>
+            <option>PARQUE BRASIL</option>
+            <option>PASSEBUS</option>
+            <option>PRIMAVERAS</option>
+            <option>PSV SOLUTIONS</option>
+            <option>QUARTETTO</option>
+            <option>RAMO BH</option>
+            <option>RCE</option>
+            <option>RIZA</option>
+            <option>SEDA</option>
+            <option>SEKALOG</option>
+            <option>SERT GROUP</option>
+            <option>SOLUÇÕES SELANTES</option>
+            <option>TIME LIONS</option>
+            <option>TRANSGOBBI</option>
+            <option>TRANSTUSA</option>
+            <option>TRELITELAS</option>
+            <option>VEXILOM</option>
+            <option>VIAÇÃO VERDES MARES</option>
+            <option>Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="ticketTitle">Título</label>
+          <input type="text" id="ticketTitle" placeholder="Descreva brevemente o chamado">
+        </div>
+        <div class="form-group">
+          <label for="ticketDesc">Descrição</label>
+          <textarea id="ticketDesc" placeholder="Detalhe o problema ou sugestão..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="ticketPriority">Prioridade</label>
+          <select id="ticketPriority">
+            <option value="baixa">🟢 Baixa</option>
+            <option value="media" selected>🟡 Média</option>
+            <option value="alta">🔴 Alta</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Anexos (Imagens)</label>
+          <div class="attach-zone" id="attachZone">
+            <div class="attach-zone-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="m21 15-5-5L5 21"/>
+              </svg>
+            </div>
+            <div class="attach-zone-text">Clique ou arraste imagens aqui</div>
+            <div class="attach-zone-hint">PNG, JPG ou GIF — máx. 2MB por arquivo (máx. 5 imagens)</div>
+            <input type="file" id="attachInput" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
+          </div>
+          <div class="attach-previews" id="attachPreviews"></div>
+        </div>
+        <button class="btn-submit-ticket" id="btnSubmitTicket">Criar Chamado</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       COLUMN MODAL
+  ═══════════════════════════════════════ -->
+  <div class="modal-overlay column-modal" id="columnModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-header-info"><h2 class="modal-title" id="columnModalTitle">Nova Coluna</h2></div>
+        <button class="modal-close" id="columnModalClose">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="columnName">Nome da Coluna</label>
+          <input type="text" id="columnName" placeholder="Ex: Code Review, Deploy...">
+        </div>
+        <div class="form-group">
+          <label>Cor do Indicador</label>
+          <div class="color-picker-grid" id="colorPicker"></div>
+        </div>
+        <button class="btn-submit-column" id="btnSubmitColumn">Criar Coluna</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       CONFIRM DIALOG
+  ═══════════════════════════════════════ -->
+  <div class="confirm-overlay" id="confirmDialog">
+    <div class="confirm-box">
+      <div class="confirm-icon">⚠️</div>
+      <div class="confirm-title" id="confirmTitle">Confirmar exclusão</div>
+      <p class="confirm-text" id="confirmText">Tem certeza?</p>
+      <div class="confirm-actions">
+        <button class="btn-confirm-cancel" id="confirmCancel">Cancelar</button>
+        <button class="btn-confirm-delete" id="confirmOk">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       LIGHTBOX
+  ═══════════════════════════════════════ -->
+  <div class="lightbox-overlay" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose">✕</button>
+    <img src="" alt="Anexo ampliado" id="lightboxImg">
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
