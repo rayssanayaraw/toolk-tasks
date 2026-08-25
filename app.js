@@ -15,6 +15,7 @@
     tickets: 'taskflow_tickets',
     columns: 'taskflow_columns',
     counter: 'taskflow_counter',
+    theme: 'taskflow_theme',
   };
 
   const SB_URL = 'https://izqmuktylbixzldbkzod.supabase.co/rest/v1/';
@@ -85,6 +86,7 @@
     userAvatar: $('userAvatar'),
     userName: $('userName'),
     roleTag: $('roleTag'),
+    themeToggle: $('themeToggle'),
     btnLogout: $('btnLogout'),
     headerStats: $('headerStats'),
     btnNewTicket: $('btnNewTicket'),
@@ -163,6 +165,13 @@
       e.style.animation = 'slideOut 0.3s ease forwards';
       setTimeout(() => e.remove(), 300);
     }, 3000);
+  }
+
+  function applyTheme(theme) {
+    const isLight = theme === 'light';
+    document.documentElement.dataset.theme = isLight ? 'light' : 'dark';
+    D.themeToggle.setAttribute('aria-label', isLight ? 'Ativar modo escuro' : 'Ativar modo claro');
+    D.themeToggle.setAttribute('title', isLight ? 'Ativar modo escuro' : 'Ativar modo claro');
   }
 
   /* ═══════════════════════════════════════
@@ -1259,6 +1268,13 @@
      EVENTS
   ═══════════════════════════════════════ */
   function bind() {
+    applyTheme(localStorage.getItem(SK.theme) || 'dark');
+    D.themeToggle.addEventListener('click', () => {
+      const nextTheme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+      localStorage.setItem(SK.theme, nextTheme);
+      applyTheme(nextTheme);
+    });
+
     // Login
     D.btnLogin.addEventListener('click', handleLogin);
     D.loginName.addEventListener('keydown', (e) => {

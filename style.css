@@ -28,6 +28,20 @@
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+[data-theme='light'] {
+  --bg: #f3f6ed;
+  --bg-secondary: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #eef4df;
+  --surface-border: #d4ddc2;
+  --text-primary: #18210f;
+  --text-secondary: #526044;
+  --text-muted: #78866c;
+  --purple-bg: rgba(139, 92, 246, 0.1);
+  --shadow: 0 4px 24px rgba(34, 48, 16, 0.1);
+  --shadow-lg: 0 12px 48px rgba(34, 48, 16, 0.16);
+}
+
 /* ═══════════════════════════════════════
    RESET
 ═══════════════════════════════════════ */
@@ -43,6 +57,13 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme='light'] body::before {
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(182, 236, 68, 0.14) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
 }
 
 body::before {
@@ -330,6 +351,43 @@ body::before {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.theme-toggle {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(182, 236, 68, 0.1);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.theme-icon-moon {
+  display: none;
+}
+
+[data-theme='light'] .theme-icon-sun {
+  display: none;
+}
+
+[data-theme='light'] .theme-icon-moon {
+  display: block;
 }
 
 .user-badge {
@@ -1782,4 +1840,9 @@ body::before {
   border: 1px solid var(--surface-border);
   border-radius: 8px;
   cursor: pointer;
+}
+
+[data-theme='light'] .header,
+[data-theme='light'] .column {
+  background: rgba(255, 255, 255, 0.82);
 }
