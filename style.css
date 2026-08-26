@@ -1977,3 +1977,44 @@ body::before {
     border-top: 1px solid var(--surface-border);
   }
 }
+/* ═══════════════════════════════════════
+   LOADING SCREEN
+═══════════════════════════════════════ */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.loading-screen.hidden { display: none; }
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  animation: fadeUp 0.5s ease forwards;
+}
+
+.infinity-loader { width: 100px; height: 50px; overflow: visible; }
+.bg-path { fill: none; stroke: var(--surface-border); stroke-width: 8; }
+.stroke-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 400;
+  stroke-dashoffset: 400;
+  animation: infinityLoad 2s linear infinite;
+}
+.loading-text { font-size: 0.82rem; color: var(--text-muted); }
+
+@keyframes infinityLoad {
+  0% { stroke-dashoffset: 400; }
+  50% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -400; }
+}

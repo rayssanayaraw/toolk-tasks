@@ -211,8 +211,11 @@
       throw new Error(`Supabase ${response.status}: ${await response.text()}`);
     }
 
-    return response.status === 204 ? null : response.json();
-  }
+    if (response.status === 204) return null;
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
+}
 
   async function signIn(email, password) {
     const response = await fetch(`${SB_AUTH_API}/token?grant_type=password`, {
@@ -381,7 +384,7 @@
   }
 
   async function saveSingleTicket(ticket) {
-    await sbRequest('tickets', {
+    await sbRequest('tickets?on_conflict=id', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates' },
       body: JSON.stringify({
@@ -409,20 +412,70 @@
     });
   }
 
-  async function saveAttachments(ticket) {
-    if (!ticket.attachments?.length) return;
-    await sbRequest('attachments', {
-      method: 'POST',
-      body: JSON.stringify(
-        ticket.attachments.map((attachment) => ({
-          ticket_id: ticket.id,
-          comment_id: null,
-          name: attachment.name,
-          url: attachment.data,
-        }))
-      ),
+  async function uploadToStorage(file, folder) {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const response = await fetch(`${SB_PROJECT_URL}/storage/v1/object/attachments/${fileName}`, {
+        method: 'POST',
+        headers: {
+            apikey: SB_KEY,
+            Authorization: `Bearer ${authSession.access_token}`,
+            'Content-Type': file.type || 'image/jpeg',
+        },
+        body: file,
     });
-  }
+
+    if (!response.ok) {
+        const err = await response.text();
+        console.error('Upload error:', response.status, err);
+        throw new Error(`Upload failed: ${response.status}`);
+    }
+
+    return `${SB_PROJECT_URL}/storage/v1/object/public/attachments/${fileName}`;
+}
+
+  async function saveAttachments(ticket) {
+    if (!ticket.attachments?.length) {
+      console.log('[ATTACH] Sem anexos para salvar');
+      return;
+    }
+
+    console.log('[ATTACH] Iniciando upload de', ticket.attachments.length, 'anexo(s)');
+
+    for (const attachment of ticket.attachments) {
+      let url = attachment.data;
+
+      if (attachment.file) {
+        console.log('[ATTACH] Fazendo upload do arquivo:', attachment.name);
+        try {
+          url = await uploadToStorage(attachment.file, `tickets/${ticket.id}`);
+          console.log('[ATTACH] Upload OK, URL:', url);
+        } catch (err) {
+          console.error('[ATTACH] Upload FALHOU:', err);
+          toast('Erro no upload da imagem: ' + err.message, 'error');
+          continue;
+        }
+      }
+
+      console.log('[ATTACH] Salvando no banco:', { ticket_id: ticket.id, name: attachment.name, url });
+      try {
+        await sbRequest('attachments', {
+          method: 'POST',
+          body: JSON.stringify({
+            ticket_id: ticket.id,
+            comment_id: null,
+            name: attachment.name,
+            url: url,
+          }),
+        });
+        console.log('[ATTACH] Salvo no banco OK');
+      } catch (err) {
+        console.error('[ATTACH] Erro ao salvar no banco:', err);
+        toast('Erro ao salvar anexo no banco: ' + err.message, 'error');
+      }
+    }
+}
 
   async function saveComment(ticket, comment) {
     const savedComments = await sbRequest('comments', {
@@ -439,43 +492,24 @@
 
     const savedComment = savedComments[0];
     if (savedComment && comment.attachments?.length) {
-      await sbRequest('attachments', {
-        method: 'POST',
-        body: JSON.stringify(
-          comment.attachments.map((attachment) => ({
+      for (const attachment of comment.attachments) {
+        let url = attachment.data;
+        if (attachment.file) {
+          url = await uploadToStorage(attachment.file, `tickets/${ticket.id}/comments`);
+        }
+        await sbRequest('attachments', {
+          method: 'POST',
+          body: JSON.stringify({
             ticket_id: ticket.id,
             comment_id: savedComment.id,
             name: attachment.name,
-            url: attachment.data,
-          }))
-        ),
-      });
+            url: url,
+          }),
+        });
+      }
     }
-  }
+}
 
-  /* ═══════════════════════════════════════
-     IMAGE COMPRESSION
-  ═══════════════════════════════════════ */
-  function compressImage(dataUrl, maxWidth, quality) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        if (img.width <= maxWidth) {
-          resolve(dataUrl);
-          return;
-        }
-        const canvas = document.createElement('canvas');
-        const ratio = maxWidth / img.width;
-        canvas.width = maxWidth;
-        canvas.height = img.height * ratio;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = () => resolve(dataUrl);
-      img.src = dataUrl;
-    });
-  }
 
   /* ═══════════════════════════════════════
      ATTACHMENT HANDLING
@@ -495,22 +529,14 @@
         return;
       }
       if (file.size > MAX_FILE_SIZE) {
-        toast(`"${file.name}" excede 2MB.`, 'error');
+        toast(`"${file.name}" excede 1MB.`, 'error');
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        let data = e.target.result;
-        try {
-          data = await compressImage(data, 800, 0.6);
-        } catch (err) { /* use original */ }
-        target.push({ name: file.name, data });
-        preview();
-      };
-      reader.readAsDataURL(file);
+      target.push({ name: file.name, file, data: URL.createObjectURL(file) });
+      preview();
     });
-  }
+}
 
   function renderAttachPreviews() {
     D.attachPreviews.innerHTML = pendingAttachments
@@ -1100,14 +1126,11 @@
     .catch((error) => {
         console.error(error);
         toast('Não foi possível salvar o chamado no Supabase.', 'error');
-    }).catch((error) => {
-        console.error(error);
-        toast('Não foi possível salvar o chamado no Supabase.', 'error');
-      })
-      .finally(() => {
+    })
+    .finally(() => {
         D.btnSubmitTicket.disabled = false;
         D.btnSubmitTicket.textContent = 'Criar Chamado';
-      });
+    });
     renderBoard();
     D.newTicketModal.classList.remove('active');
     pendingAttachments = [];
@@ -1117,125 +1140,160 @@
   /* ═══════════════════════════════════════
      DETAIL MODAL
   ═══════════════════════════════════════ */
-  function openDetail(id) {
-    tkId = id;
-    const t = tickets.find((x) => x.id === id);
-    if (!t) return;
+ async function openDetail(id) {
+  tkId = id;
+  const t = tickets.find((x) => x.id === id);
+  if (!t) return;
 
-    const col = columns.find((c) => c.id === t.status);
+  const col = columns.find((c) => c.id === t.status);
 
-    D.modalId.textContent = `#${t.id}`;
-    D.modalTitle.textContent = t.title;
-    D.modalDescription.textContent = t.description;
+  D.modalId.textContent = `#${t.id}`;
+  D.modalTitle.textContent = t.title;
+  D.modalDescription.textContent = t.description;
 
-    D.modalDetails.innerHTML = `
-      <div class="detail-item">
-        <span class="detail-label">Tipo</span>
-        <span class="detail-value">
-          <span class="card-type ${t.type}">${t.type === 'bug' ? 'Bug' : 'Melhoria'}</span>
-        </span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Prioridade</span>
-        <span class="detail-value">
-          <div class="card-priority ${t.priority}"></div> ${cap(t.priority)}
-        </span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Módulo</span>
-        <span class="detail-value">${esc(t.module || 'Não informado')}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Cliente</span>
-        <span class="detail-value">${esc(t.client || 'Não informado')}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Status</span>
-        <span class="detail-value">${esc(col?.name || t.status)}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Criado por</span>
-        <span class="detail-value">${esc(t.author)}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Criado em</span>
-        <span class="detail-value">${new Date(t.createdAt).toLocaleString('pt-BR')}</span>
-      </div>
-      <div class="detail-item">
-        <span class="detail-label">Atualizado em</span>
-        <span class="detail-value">${new Date(t.updatedAt).toLocaleString('pt-BR')}</span>
-      </div>`;
+  D.modalDetails.innerHTML = `
+    <div class="detail-item">
+      <span class="detail-label">Tipo</span>
+      <span class="detail-value">
+        <span class="card-type ${t.type}">${t.type === 'bug' ? 'Bug' : 'Melhoria'}</span>
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Prioridade</span>
+      <span class="detail-value">
+        <div class="card-priority ${t.priority}"></div> ${cap(t.priority)}
+      </span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Módulo</span>
+      <span class="detail-value">${esc(t.module || 'Não informado')}</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Cliente</span>
+      <span class="detail-value">${esc(t.client || 'Não informado')}</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Status</span>
+      <span class="detail-value">${esc(col?.name || t.status)}</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Criado por</span>
+      <span class="detail-value">${esc(t.author)}</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Criado em</span>
+      <span class="detail-value">${new Date(t.createdAt).toLocaleString('pt-BR')}</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Atualizado em</span>
+      <span class="detail-value">${new Date(t.updatedAt).toLocaleString('pt-BR')}</span>
+    </div>`;
 
-    // Attachments
-    if (t.attachments && t.attachments.length > 0) {
-      D.attachSection.style.display = 'block';
-      D.attachGrid.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">Carregando anexos...</p>';
+  // Busca anexos do ticket e dos comentários no Supabase
+  D.attachSection.style.display = 'block';
+  D.attachGrid.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">Carregando anexos...</p>';
 
-      sbRequest(`attachments?ticket_id=eq.${t.id}&comment_id=is.null&select=name,url`)
-    .then((remoteAttachments) => {
-      D.attachGrid.innerHTML = remoteAttachments
-        .map((a, i) =>
-          `<div class="attach-thumb" data-idx="${i}">
-            <img src="${a.url}" alt="${esc(a.name)}">
-          </div>`
-        ).join('');
+  try {
+    const allAttachments = await sbRequest(
+      `attachments?ticket_id=eq.${id}&select=id,ticket_id,comment_id,name,url`
+    );
 
-      D.attachGrid.querySelectorAll('.attach-thumb').forEach((th) => {
-        th.addEventListener('click', () => {
-          openLightbox(remoteAttachments[parseInt(th.dataset.idx)].url);
-        });
+    // Anexos diretos do ticket (sem comment_id)
+    t.attachments = allAttachments
+      .filter((a) => !a.comment_id)
+      .map((a) => ({ name: a.name, data: a.url }));
+
+    // Anexos vinculados aos comentários
+    if (t.comments) {
+      t.comments.forEach((comment) => {
+        comment.attachments = allAttachments
+          .filter((a) => a.comment_id === comment.id)
+          .map((a) => ({ name: a.name, data: a.url }));
       });
-    })
-    .catch(() => {
-      D.attachGrid.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">Erro ao carregar anexos.</p>';
-    });
-} else {
-  D.attachSection.style.display = 'none';
-  D.attachGrid.innerHTML = '';
-}
-
-    // Admin controls
-    if (user.role === 'admin') {
-      D.adminControls.classList.add('visible');
-      D.statusButtons.innerHTML = columns
-        .map((c) => {
-          const cur = t.status === c.id;
-          return `<button class="status-btn ${cur ? 'current' : ''}" data-status="${c.id}"
-            style="${cur ? `border-color:${c.color};color:${c.color};background:${c.color}20` : ''}">
-            ${esc(c.name)}
-          </button>`;
-        })
-        .join('');
-
-      D.statusButtons.querySelectorAll('.status-btn').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const ns = btn.dataset.status;
-          if (t.status !== ns) {
-            t.status = ns;
-            t.updatedAt = new Date().toISOString();
-            saveSingleTicket(t);
-            renderBoard();
-            openDetail(id);
-            const cn = columns.find((c) => c.id === ns)?.name || ns;
-            toast(`Status → "${cn}"`, 'success');
-          }
-        });
-      });
-    } else {
-      D.adminControls.classList.remove('visible');
     }
-
-    renderComments(t);
-    D.detailModal.classList.add('active');
+  } catch (error) {
+    console.error('Erro ao carregar anexos:', error);
   }
+
+  // Renderiza a galeria do ticket
+  if (t.attachments && t.attachments.length > 0) {
+    D.attachSection.style.display = 'block';
+    D.attachGrid.innerHTML = t.attachments
+      .map(
+        (a, i) =>
+          `<div class="attach-thumb" data-idx="${i}">
+            <img src="${a.data}" alt="${esc(a.name)}">
+          </div>`
+      )
+      .join('');
+
+    D.attachGrid.querySelectorAll('.attach-thumb').forEach((th) => {
+      th.addEventListener('click', () => {
+        openLightbox(t.attachments[parseInt(th.dataset.idx)].data);
+      });
+    });
+  } else {
+    D.attachSection.style.display = 'none';
+    D.attachGrid.innerHTML = '';
+  }
+
+  // Controles de Administrador
+  if (user.role === 'admin') {
+    D.adminControls.classList.add('visible');
+    D.statusButtons.innerHTML = columns
+      .map((c) => {
+        const cur = t.status === c.id;
+        return `<button class="status-btn ${cur ? 'current' : ''}" data-status="${c.id}"
+          style="${cur ? `border-color:${c.color};color:${c.color};background:${c.color}20` : ''}">
+          ${esc(c.name)}
+        </button>`;
+      })
+      .join('');
+
+    D.statusButtons.querySelectorAll('.status-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const ns = btn.dataset.status;
+        if (t.status !== ns) {
+          t.status = ns;
+          t.updatedAt = new Date().toISOString();
+          saveSingleTicket(t);
+          renderBoard();
+          openDetail(id);
+          const cn = columns.find((c) => c.id === ns)?.name || ns;
+          toast(`Status → "${cn}"`, 'success');
+        }
+      });
+    });
+  } else {
+    D.adminControls.classList.remove('visible');
+  }
+
+  renderComments(t);
+  D.detailModal.classList.add('active');
+}
 
   /* ═══════════════════════════════════════
      LIGHTBOX
   ═══════════════════════════════════════ */
   function openLightbox(src) {
-    D.lightboxImg.src = src;
-    D.lightbox.classList.add('active');
-  }
+  if (!D.lightbox || !D.lightboxImg) return;
+  D.lightboxImg.src = src;
+  D.lightbox.classList.add('active');
+}
+
+if (D.lightboxClose) {
+  D.lightboxClose.addEventListener('click', () => {
+    D.lightbox.classList.remove('active');
+  });
+}
+
+if (D.lightbox) {
+  D.lightbox.addEventListener('click', (e) => {
+    if (e.target === D.lightbox) {
+      D.lightbox.classList.remove('active');
+    }
+  });
+}
 
   function closeLightbox() {
     D.lightbox.classList.remove('active');
@@ -1599,15 +1657,28 @@
   ═══════════════════════════════════════ */
   async function boot() {
     bind();
-    const hasSession = await restoreSession();
-    await load();
+
+    let hasSession = false;
+    try {
+      hasSession = await restoreSession();
+    } catch (e) {}
+
+    try {
+      await load();
+    } catch (e) {}
+
+    var ls = document.getElementById('loadingScreen');
+    if (ls) ls.remove();
+
     if (hasSession) {
       D.loginScreen.classList.add('hidden');
       D.app.classList.add('active');
       setupUI();
       renderBoard();
+    } else {
+      D.loginScreen.classList.remove('hidden');
     }
-  }
+}
+boot();
 
-  boot();
 })();

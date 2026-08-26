@@ -9,11 +9,23 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- ═══════════════════════════════════════
+       LOADING SCREEN
+  ═══════════════════════════════════════ -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-content">
+      <svg class="infinity-loader" viewBox="0 0 256 128" xmlns="http://www.w3.org/2000/svg">
+        <path class="bg-path" d="M64,32 C37.5,32 16,53.5 16,80 C16,106.5 37.5,128 64,128 C90.5,128 128,80 128,80 C128,80 165.5,32 192,32 C218.5,32 240,53.5 240,80 C240,106.5 218.5,128 192,128 C165.5,128 128,80 128,80 C128,80 90.5,32 64,32 Z" transform="translate(0, -16)"/>
+        <path class="stroke-path" d="M64,32 C37.5,32 16,53.5 16,80 C16,106.5 37.5,128 64,128 C90.5,128 128,80 128,80 C128,80 165.5,32 192,32 C218.5,32 240,53.5 240,80 C240,106.5 218.5,128 192,128 C165.5,128 128,80 128,80 C128,80 90.5,32 64,32 Z" transform="translate(0, -16)"/>
+      </svg>
+      <p class="loading-text">Carregando...</p>
+    </div>
+  </div>
 
   <!-- ═══════════════════════════════════════
        LOGIN
   ═══════════════════════════════════════ -->
-  <div class="login-screen" id="loginScreen">
+  <div class="login-screen hidden" id="loginScreen">
     <div class="login-card">
       <div class="login-logo">
         <img src="midia/toolk_reduzida_nova.png" alt="Toolk" class="login-logo-img">
