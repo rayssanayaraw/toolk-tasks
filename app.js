@@ -1663,9 +1663,12 @@ if (D.lightbox) {
       hasSession = await restoreSession();
     } catch (e) {}
 
-    try {
-      await load();
-    } catch (e) {}
+    // Só carrega se logado
+    if (hasSession) {
+      try {
+        await load();
+      } catch (e) {}
+    }
 
     var ls = document.getElementById('loadingScreen');
     if (ls) ls.remove();
