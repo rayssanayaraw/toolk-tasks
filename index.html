@@ -156,9 +156,17 @@
       </div>
       <div class="toolbar-right">
         <div class="search-box">
-          <input type="search" id="searchInput" placeholder="Buscar por palavras, descrição ou autor" aria-label="Buscar chamados">
+          <input type="search" id="searchInput" placeholder="Buscar..." aria-label="Buscar chamados">
           <button class="search-clear" id="searchClear" title="Limpar busca">✕</button>
         </div>
+                <button class="btn-export" id="btnExport" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Exportar CSV
+        </button>
         <button class="btn-manage-columns" id="btnManageColumns" style="display:none;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <rect x="3" y="3" width="7" height="7"/>

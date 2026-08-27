@@ -94,6 +94,7 @@
     btnNewTicket: $('btnNewTicket'),
     btnManageColumns: $('btnManageColumns'),
     btnManageUsers: $('btnManageUsers'),
+    btnExport: $('btnExport'),
     moduleFilter: $('moduleFilter'),
     clientFilter: $('clientFilter'),
     searchInput: $('searchInput'),
@@ -668,6 +669,7 @@
     D.roleTag.className = 'role-tag ' + user.role;
     D.btnManageColumns.style.display = user.role === 'admin' ? 'flex' : 'none';
     D.btnManageUsers.style.display = user.role === 'admin' ? 'flex' : 'none';
+    D.btnExport.style.display = user.role === 'admin' ? 'flex' : 'none';
   }
 
   async function loadRegisteredUsers() {
@@ -1517,6 +1519,69 @@ if (D.lightbox) {
   /* ═══════════════════════════════════════
      EVENTS
   ═══════════════════════════════════════ */
+  function exportCSV() {
+    if (!tickets.length) {
+      toast('Nenhum chamado para exportar.', 'error');
+      return;
+    }
+
+    const headers = [
+      'ID', 'Tipo', 'Título', 'Descrição', 'Módulo', 'Cliente',
+      'Prioridade', 'Status', 'Autor', 'Criado em', 'Atualizado em',
+      'Comentários', 'Anexos'
+    ];
+
+    const rows = tickets.map((t) => {
+      const col = columns.find((c) => c.id === t.status);
+      const statusName = col?.name || t.status;
+      const typeName = t.type === 'bug' ? 'Bug' : 'Melhoria';
+      const commentsCount = (t.comments || []).length;
+      const attachmentsCount = (t.attachments || []).length;
+
+      return [
+        t.id,
+        typeName,
+        t.title,
+        t.description,
+        t.module || '',
+        t.client || '',
+        t.priority,
+        statusName,
+        t.author,
+        new Date(t.createdAt).toLocaleString('pt-BR'),
+        new Date(t.updatedAt).toLocaleString('pt-BR'),
+        commentsCount,
+        attachmentsCount,
+      ];
+    });
+
+    function escapeCSV(val) {
+      const str = String(val ?? '');
+      if (str.includes('"') || str.includes(';') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    }
+
+    const csvContent =
+      '\uFEFF' +
+      headers.join(';') + '\n' +
+      rows.map((row) => row.map(escapeCSV).join(';')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    const now = new Date();
+    const date = now.toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `toolk-tasks-${date}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+    toast(`Exportado ${tickets.length} chamado(s)!`, 'success');
+}
+
   function bind() {
     applyTheme(localStorage.getItem(SK.theme) || 'dark');
     D.themeToggle.addEventListener('click', () => {
@@ -1549,6 +1614,7 @@ if (D.lightbox) {
     D.btnNewTicket.addEventListener('click', openNew);
     D.btnManageColumns.addEventListener('click', openColNew);
     D.btnManageUsers.addEventListener('click', openUserModal);
+    D.btnExport.addEventListener('click', exportCSV);
     D.userModalClose.addEventListener('click', () => D.userModal.classList.remove('active'));
     D.btnSubmitUser.addEventListener('click', submitNewUser);
 

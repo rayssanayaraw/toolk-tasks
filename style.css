@@ -500,7 +500,7 @@ body::before {
   font-size: 0.92rem;
   padding: 6px 8px;
   outline: none;
-  width: 280px;
+  width: 200px;
   min-width: 120px;
 }
 
@@ -2017,4 +2017,34 @@ body::before {
   0% { stroke-dashoffset: 400; }
   50% { stroke-dashoffset: 0; }
   100% { stroke-dashoffset: -400; }
+}
+/* ═══════════════════════════════════════
+   EXPORT BUTTON
+═══════════════════════════════════════ */
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  color: var(--text-secondary);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-export svg {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-export:hover {
+  border-color: var(--accent-hover);
+  color: var(--accent-hover);
+  background: var(--accent-hover-bg);
 }
