@@ -80,34 +80,42 @@
       </div>
     </header>
 
+        <!-- TOOLBAR -->
     <!-- TOOLBAR -->
     <div class="toolbar">
-      <div class="toolbar-left">
-        <button class="filter-btn active" data-filter="all">Todos</button>
-        <button class="filter-btn" data-filter="bug">🐛 Bugs</button>
-        <button class="filter-btn" data-filter="improvement">✨ Melhorias</button>
-        <select class="filter-select" id="moduleFilter" aria-label="Filtrar por módulo">
-          <option value="all">Todos os módulos</option>
-          <option>Configurações</option>
-          <option>Administração</option>
-          <option>Avaliação de Perfil</option>
-          <option>Recrutamento e Seleção</option>
-          <option>Desempenho e Competências</option>
-          <option>PDI</option>
-          <option>Feedbacks</option>
-          <option>One-on-One</option>
-          <option>UCT</option>
-          <option>Qualidade de Vida</option>
-          <option>Toolk Forms</option>
-          <option>Meu R.H</option>
-          <option>Consulta Certificação</option>
-          <option>Premiação</option>
-          <option>Organograma</option>
-          <option>Outro</option>
-        </select>
-        <select class="filter-select" id="clientFilter" aria-label="Filtrar por empresa">
-          <option value="all">Todas as empresas</option>
-          <option>ACEVILLE</option>
+      <!-- Linha 1: Filtros (esquerda) + Ações (direita) -->
+      <div class="toolbar-row">
+        <div class="toolbar-group filter-type-group">
+          <button class="filter-btn active" data-filter="all">Todos</button>
+          <button class="filter-btn" data-filter="bug">🐛 Bugs</button>
+          <button class="filter-btn" data-filter="improvement">✨ Melhorias</button>
+        </div>
+
+        <div class="toolbar-separator"></div>
+
+        <div class="toolbar-group filter-scope-group">
+          <select class="filter-select" id="moduleFilter" aria-label="Filtrar por módulo">
+            <option value="all">Todos os módulos</option>
+            <option>Configurações</option>
+            <option>Administração</option>
+            <option>Avaliação de Perfil</option>
+            <option>Recrutamento e Seleção</option>
+            <option>Desempenho e Competências</option>
+            <option>PDI</option>
+            <option>Feedbacks</option>
+            <option>One-on-One</option>
+            <option>UCT</option>
+            <option>Qualidade de Vida</option>
+            <option>Toolk Forms</option>
+            <option>Meu R.H</option>
+            <option>Consulta Certificação</option>
+            <option>Premiação</option>
+            <option>Organograma</option>
+            <option>Outro</option>
+          </select>
+          <select class="filter-select" id="clientFilter" aria-label="Filtrar por empresa">
+            <option value="all">Todas as empresas</option>
+            <option>ACEVILLE</option>
             <option>ACONCHEGO</option>
             <option>ANALI SUPERMERCADO</option>
             <option>ARAMEBRAS</option>
@@ -117,7 +125,6 @@
             <option>BIG SERVICE</option>
             <option>BIO PARQUE</option>
             <option>BOMPEL</option>
-            <option>ACEVILLE</option>
             <option>CODIL</option>
             <option>CONCEITO BRASIL ENGENHARIA</option>
             <option>EXPRESSO SUL</option>
@@ -152,38 +159,39 @@
             <option>VEXILOM</option>
             <option>VIAÇÃO VERDES MARES</option>
             <option>Outro</option>
-        </select>
-      </div>
-      <div class="toolbar-right">
-        <div class="search-box">
-          <input type="search" id="searchInput" placeholder="Buscar..." aria-label="Buscar chamados">
-          <button class="search-clear" id="searchClear" title="Limpar busca">✕</button>
+          </select>
         </div>
-                <button class="btn-export" id="btnExport" style="display:none;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Exportar CSV
-        </button>
-        <button class="btn-manage-columns" id="btnManageColumns" style="display:none;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <rect x="3" y="3" width="7" height="7"/>
-            <rect x="14" y="3" width="7" height="7"/>
-            <rect x="3" y="14" width="7" height="7"/>
-            <rect x="14" y="14" width="7" height="7"/>
-          </svg>
-          Colunas
-        </button>
-        <button class="btn-manage-columns" id="btnManageUsers" style="display:none;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M19 8v6M22 11h-6"/>
-          </svg>
-          Colaboradores
-        </button>
+
+        <div class="toolbar-spacer"></div>
+
+        <div class="toolbar-group action-tools-group">
+          <button class="btn-tool" id="btnExport" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Exportar CSV
+          </button>
+          <button class="btn-tool" id="btnManageColumns" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+            </svg>
+            Colunas
+          </button>
+          <button class="btn-tool" id="btnManageUsers" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M19 8v6M22 11h-6"/>
+            </svg>
+            Colaboradores
+          </button>
+        </div>
+
         <button class="btn-new-ticket" id="btnNewTicket">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/>
@@ -191,6 +199,14 @@
           </svg>
           Novo Chamado
         </button>
+      </div>
+
+      <!-- Linha 2: Busca (esquerda) -->
+      <div class="toolbar-row toolbar-search-row">
+        <div class="search-box">
+          <input type="search" id="searchInput" placeholder="Buscar chamados..." aria-label="Buscar chamados">
+          <button class="search-clear" id="searchClear" title="Limpar busca">✕</button>
+        </div>
       </div>
     </div>
 
