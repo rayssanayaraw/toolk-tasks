@@ -51,6 +51,25 @@
   const MAX_FILE_SIZE = 1 * 1024 * 1024;
   const MAX_FILES = 5;
 
+  const MODULE_LIST = [
+    'App - MOBILE', 'Configurações', 'Administração', 'Avaliação de Perfil',
+    'Recrutamento e Seleção', 'Desempenho e Competências', 'PDI',
+    'Feedbacks', 'One-on-One', 'UCT', 'Qualidade de Vida',
+    'Toolk Forms', 'Meu R.H', 'Consulta Certificação',
+    'Premiação', 'Organograma', 'Outro'
+  ];
+
+  const CLIENT_LIST = [
+    'ACEVILLE', 'ACONCHEGO', 'ANALI SUPERMERCADO', 'ARAMEBRAS', 'ARAMEPAR',
+    'AUTOR CAPACITACAO', 'BDR', 'BIG SERVICE', 'BIO PARQUE', 'BOMPEL',
+    'CODIL', 'CONCEITO BRASIL ENGENHARIA', 'EXPRESSO SUL', 'FLOW', 'GESTRAN',
+    'GIDION', 'AÇOS', 'CAVALCA', 'EVL', 'IMPAR', 'INTERNACIONAL', 'ITAMEDI',
+    'LEGACY', 'LUMINA', 'MAXUP', 'PARQUE BRASIL', 'PASSEBUS', 'PRIMAVERAS',
+    'PSV SOLUTIONS', 'QUARTETTO', 'RAMO BH', 'RCE', 'RIZA', 'SEDA', 'SEKALOG',
+    'SERT GROUP', 'SOLUÇÕES SELANTES', 'TIME LIONS', 'TOOLK', 'TRANSGOBBI',
+    'TRANSTUSA', 'TRELITELAS', 'VEXILOM', 'VIAÇÃO VERDES MARES', 'WOEU', 'Outro'
+  ];
+
   /* ═══════════════════════════════════════
      STATE
   ═══════════════════════════════════════ */
@@ -62,6 +81,8 @@
   let moduleFilter = 'all';
   let clientFilter = 'all';
   let searchQuery = '';
+  let dateFrom = '';
+  let dateTo = '';
   let tkId = null;
   let selType = null;
   let selColor = null;
@@ -72,6 +93,10 @@
   let delColId = null;
   let pendingAttachments = [];
   let pendingCommentAttachments = [];
+  let editMode = false;
+  let deleteTicketId = null;
+  let deleteCommentId = null;
+  let editingCommentId = null;
 
   /* ═══════════════════════════════════════
      DOM REFERENCES
@@ -99,6 +124,9 @@
     clientFilter: $('clientFilter'),
     searchInput: $('searchInput'),
     searchClear: $('searchClear'),
+    dateFrom: $('dateFrom'),
+    dateTo: $('dateTo'),
+    clearAllFilters: $('clearAllFilters'),
     board: $('board'),
     detailModal: $('detailModal'),
     modalId: $('modalId'),
@@ -106,6 +134,8 @@
     modalDescription: $('modalDescription'),
     modalDetails: $('modalDetails'),
     modalClose: $('modalClose'),
+    btnEditTicket: $('btnEditTicket'),
+    btnDeleteTicket: $('btnDeleteTicket'),
     adminControls: $('adminControls'),
     statusButtons: $('statusButtons'),
     commentsList: $('commentsList'),
@@ -189,6 +219,12 @@
     D.themeToggle.setAttribute('title', isLight ? 'Ativar modo escuro' : 'Ativar modo claro');
   }
 
+  function generateOptions(list, selected) {
+    return list.map(item =>
+      `<option value="${esc(item)}" ${item === selected ? 'selected' : ''}>${esc(item)}</option>`
+    ).join('');
+  }
+
   /* ═══════════════════════════════════════
      DATA PERSISTENCE
   ═══════════════════════════════════════ */
@@ -216,7 +252,7 @@
 
     const text = await response.text();
     return text ? JSON.parse(text) : null;
-}
+  }
 
   async function signIn(email, password) {
     const response = await fetch(`${SB_AUTH_API}/token?grant_type=password`, {
@@ -403,7 +439,7 @@
         updated_at: ticket.updatedAt,
       }),
     });
-}
+  }
 
   async function saveC() {
     await sbRequest('columns?on_conflict=id', {
@@ -418,40 +454,33 @@
     const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     const response = await fetch(`${SB_PROJECT_URL}/storage/v1/object/attachments/${fileName}`, {
-        method: 'POST',
-        headers: {
-            apikey: SB_KEY,
-            Authorization: `Bearer ${authSession.access_token}`,
-            'Content-Type': file.type || 'image/jpeg',
-        },
-        body: file,
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${authSession.access_token}`,
+        'Content-Type': file.type || 'image/jpeg',
+      },
+      body: file,
     });
 
     if (!response.ok) {
-        const err = await response.text();
-        console.error('Upload error:', response.status, err);
-        throw new Error(`Upload failed: ${response.status}`);
+      const err = await response.text();
+      console.error('Upload error:', response.status, err);
+      throw new Error(`Upload failed: ${response.status}`);
     }
 
     return `${SB_PROJECT_URL}/storage/v1/object/public/attachments/${fileName}`;
-}
+  }
 
   async function saveAttachments(ticket) {
-    if (!ticket.attachments?.length) {
-      console.log('[ATTACH] Sem anexos para salvar');
-      return;
-    }
-
-    console.log('[ATTACH] Iniciando upload de', ticket.attachments.length, 'anexo(s)');
+    if (!ticket.attachments?.length) return;
 
     for (const attachment of ticket.attachments) {
       let url = attachment.data;
 
       if (attachment.file) {
-        console.log('[ATTACH] Fazendo upload do arquivo:', attachment.name);
         try {
           url = await uploadToStorage(attachment.file, `tickets/${ticket.id}`);
-          console.log('[ATTACH] Upload OK, URL:', url);
         } catch (err) {
           console.error('[ATTACH] Upload FALHOU:', err);
           toast('Erro no upload da imagem: ' + err.message, 'error');
@@ -459,7 +488,6 @@
         }
       }
 
-      console.log('[ATTACH] Salvando no banco:', { ticket_id: ticket.id, name: attachment.name, url });
       try {
         await sbRequest('attachments', {
           method: 'POST',
@@ -470,14 +498,14 @@
             url: url,
           }),
         });
-        console.log('[ATTACH] Salvo no banco OK');
       } catch (err) {
         console.error('[ATTACH] Erro ao salvar no banco:', err);
         toast('Erro ao salvar anexo no banco: ' + err.message, 'error');
       }
     }
-}
+  }
 
+    /* ── saveComment ── agora retorna o comentario salvo */
   async function saveComment(ticket, comment) {
     const savedComments = await sbRequest('comments', {
       method: 'POST',
@@ -509,8 +537,105 @@
         });
       }
     }
-}
 
+    return savedComment;
+  }
+
+  /* ── submitComment ── atualiza o ID local com o UUID real */
+  function submitComment() {
+    const text = D.commentInput.value.trim();
+    if (!text || !tkId) return;
+
+    const t = tickets.find((x) => x.id === tkId);
+    if (!t) return;
+
+    if (!t.comments) t.comments = [];
+
+    const newCommentData = {
+      id: 'temp_' + Date.now(),
+      author: user.name,
+      role: user.role,
+      text,
+      createdAt: new Date().toISOString(),
+      attachments: [...pendingCommentAttachments],
+    };
+
+    t.comments.push(newCommentData);
+    t.updatedAt = new Date().toISOString();
+
+    saveComment(t, newCommentData)
+      .then((savedComment) => {
+        if (savedComment && savedComment.id) {
+          newCommentData.id = savedComment.id;
+          console.log('[COMMENT] ID atualizado:', savedComment.id);
+        }
+        return saveSingleTicket(t);
+      })
+      .catch((error) => {
+        console.error(error);
+        toast('Não foi possível salvar o comentário no Supabase.', 'error');
+      });
+
+    renderComments(t);
+    renderBoard();
+
+    D.commentInput.value = '';
+    D.commentInput.style.height = 'auto';
+    pendingCommentAttachments = [];
+    D.commentAttachInput.value = '';
+    D.commentAttachPreviews.innerHTML = '';
+    toast('Comentário adicionado!', 'success');
+  }
+
+  /* ── confirmDeleteComment ── reseta delColId tambem */
+  function confirmDeleteComment(commentId) {
+    const t = tickets.find(x => x.id === tkId);
+    if (!t) return;
+
+    const comment = t.comments.find(c => c.id === commentId);
+    if (!comment) return;
+
+    deleteCommentId = commentId;
+    deleteTicketId = null;
+    delColId = null;
+
+    D.confirmTitle.textContent = 'Excluir comentário?';
+    D.confirmText.textContent = `Comentário de ${comment.author}: "${comment.text.substring(0, 80)}${comment.text.length > 80 ? '...' : ''}"`;
+    D.confirmOk.textContent = 'Excluir';
+    D.confirmOk.className = 'btn-confirm-delete';
+
+    D.confirmDialog.classList.add('active');
+  }
+
+  async function updateCommentInDB(commentId, newText) {
+    await sbRequest(`comments?id=eq.${commentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ text: newText }),
+    });
+  }
+
+  async function deleteCommentFromDB(commentId) {
+    // Deletar anexos do comentário
+    await sbRequest(`attachments?comment_id=eq.${commentId}`, {
+      method: 'DELETE',
+    });
+    // Deletar o comentário
+    await sbRequest(`comments?id=eq.${commentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async function deleteTicketFromDB(ticketId) {
+    await sbRequest(`attachments?ticket_id=eq.${ticketId}`, {
+      method: 'DELETE',
+    });
+    await sbRequest(`comments?ticket_id=eq.${ticketId}`, {
+      method: 'DELETE',
+    });
+    await sbRequest(`tickets?id=eq.${ticketId}`, {
+      method: 'DELETE',
+    });
+  }
 
   /* ═══════════════════════════════════════
      ATTACHMENT HANDLING
@@ -537,7 +662,7 @@
       target.push({ name: file.name, file, data: URL.createObjectURL(file) });
       preview();
     });
-}
+  }
 
   function renderAttachPreviews() {
     D.attachPreviews.innerHTML = pendingAttachments
@@ -766,6 +891,18 @@
           (moduleFilter === 'all' || ticket.module === moduleFilter) &&
           (clientFilter === 'all' || ticket.client === clientFilter);
         if (!baseFilter) return false;
+        if (dateFrom || dateTo) {
+    const ticketDate = new Date(ticket.createdAt);
+    ticketDate.setHours(0, 0, 0, 0);
+    if (dateFrom) {
+      const from = new Date(dateFrom + 'T00:00:00');
+      if (ticketDate < from) return false;
+    }
+    if (dateTo) {
+      const to = new Date(dateTo + 'T23:59:59');
+      if (ticketDate > to) return false;
+    }
+  }
         if (!q) return true;
         const fields = `${ticket.title || ''} ${ticket.description || ''} ${ticket.author || ''}`.toLowerCase();
         const words = q.split(/\s+/).filter(Boolean);
@@ -1124,15 +1261,15 @@
 
     tickets.unshift(tk);
     saveSingleTicket(tk)
-    .then(() => saveAttachments(tk))
-    .catch((error) => {
+      .then(() => saveAttachments(tk))
+      .catch((error) => {
         console.error(error);
         toast('Não foi possível salvar o chamado no Supabase.', 'error');
-    })
-    .finally(() => {
+      })
+      .finally(() => {
         D.btnSubmitTicket.disabled = false;
         D.btnSubmitTicket.textContent = 'Criar Chamado';
-    });
+      });
     renderBoard();
     D.newTicketModal.classList.remove('active');
     pendingAttachments = [];
@@ -1140,172 +1277,363 @@
   }
 
   /* ═══════════════════════════════════════
+     EDIT TICKET
+  ═══════════════════════════════════════ */
+  function enterEditMode() {
+    const t = tickets.find(x => x.id === tkId);
+    if (!t) return;
+    editMode = true;
+
+    D.modalTitle.innerHTML = '';
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.id = 'editTitle';
+    titleInput.className = 'edit-input-title';
+    titleInput.value = t.title;
+    D.modalTitle.appendChild(titleInput);
+
+    D.modalDescription.innerHTML = '';
+    const descTa = document.createElement('textarea');
+    descTa.id = 'editDesc';
+    descTa.className = 'edit-textarea';
+    descTa.value = t.description;
+    D.modalDescription.appendChild(descTa);
+
+    const col = columns.find(c => c.id === t.status);
+    D.modalDetails.innerHTML = `
+      <div class="detail-item">
+        <span class="detail-label">Tipo</span>
+        <div class="detail-value">
+          <select id="editType" class="edit-select">
+            <option value="bug" ${t.type === 'bug' ? 'selected' : ''}>🐛 Bug</option>
+            <option value="improvement" ${t.type === 'improvement' ? 'selected' : ''}>✨ Melhoria</option>
+          </select>
+        </div>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Prioridade</span>
+        <div class="detail-value">
+          <select id="editPriority" class="edit-select">
+            <option value="baixa" ${t.priority === 'baixa' ? 'selected' : ''}>🟢 Baixa</option>
+            <option value="media" ${t.priority === 'media' ? 'selected' : ''}>🟡 Média</option>
+            <option value="alta" ${t.priority === 'alta' ? 'selected' : ''}>🔴 Alta</option>
+          </select>
+        </div>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Módulo</span>
+        <div class="detail-value">
+          <select id="editModule" class="edit-select">
+            <option value="">Selecione o módulo</option>
+            ${generateOptions(MODULE_LIST, t.module)}
+          </select>
+        </div>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Cliente</span>
+        <div class="detail-value">
+          <select id="editClient" class="edit-select">
+            <option value="">Selecione o cliente</option>
+            ${generateOptions(CLIENT_LIST, t.client)}
+          </select>
+        </div>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Status</span>
+        <span class="detail-value">${esc(col?.name || t.status)}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Criado por</span>
+        <span class="detail-value">${esc(t.author)}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Criado em</span>
+        <span class="detail-value">${new Date(t.createdAt).toLocaleString('pt-BR')}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Atualizado em</span>
+        <span class="detail-value">${new Date(t.updatedAt).toLocaleString('pt-BR')}</span>
+      </div>
+    `;
+
+    let editActions = document.getElementById('editActions');
+    if (editActions) editActions.remove();
+    editActions = document.createElement('div');
+    editActions.className = 'edit-actions';
+    editActions.id = 'editActions';
+    editActions.innerHTML = `
+      <button class="btn-edit-cancel" id="btnEditCancel">Cancelar</button>
+      <button class="btn-edit-save" id="btnEditSave">Salvar Alterações</button>
+    `;
+    D.modalDetails.after(editActions);
+
+    document.getElementById('btnEditSave').addEventListener('click', saveTicketEdit);
+    document.getElementById('btnEditCancel').addEventListener('click', () => openDetail(tkId));
+
+    if (D.btnEditTicket) D.btnEditTicket.style.display = 'none';
+    if (D.btnDeleteTicket) D.btnDeleteTicket.style.display = 'none';
+
+    titleInput.focus();
+    titleInput.select();
+  }
+
+  function saveTicketEdit() {
+    const t = tickets.find(x => x.id === tkId);
+    if (!t) return;
+
+    const titleEl = document.getElementById('editTitle');
+    const descEl = document.getElementById('editDesc');
+    const typeEl = document.getElementById('editType');
+    const priorityEl = document.getElementById('editPriority');
+    const moduleEl = document.getElementById('editModule');
+    const clientEl = document.getElementById('editClient');
+
+    const title = titleEl.value.trim();
+    const desc = descEl.value.trim();
+
+    if (!title) { toast('Informe um título.', 'error'); titleEl.focus(); return; }
+    if (!desc) { toast('Informe uma descrição.', 'error'); descEl.focus(); return; }
+    if (!moduleEl.value) { toast('Selecione um módulo.', 'error'); moduleEl.focus(); return; }
+    if (!clientEl.value) { toast('Selecione um cliente.', 'error'); clientEl.focus(); return; }
+
+    t.title = title;
+    t.description = desc;
+    t.type = typeEl.value;
+    t.priority = priorityEl.value;
+    t.module = moduleEl.value;
+    t.client = clientEl.value;
+    t.updatedAt = new Date().toISOString();
+
+    const saveBtn = document.getElementById('btnEditSave');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Salvando...';
+
+    saveSingleTicket(t)
+      .then(() => {
+        toast('Chamado atualizado com sucesso!', 'success');
+        renderBoard();
+        openDetail(tkId);
+      })
+      .catch(err => {
+        console.error(err);
+        toast('Erro ao salvar alterações.', 'error');
+      })
+      .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Salvar Alterações';
+      });
+  }
+
+  /* ═══════════════════════════════════════
+     DELETE TICKET
+  ═══════════════════════════════════════ */
+  function confirmDeleteTicket() {
+    const t = tickets.find(x => x.id === tkId);
+    if (!t) return;
+
+    deleteTicketId = tkId;
+    deleteCommentId = null;
+
+    D.confirmTitle.textContent = `Excluir chamado #${t.id}?`;
+    D.confirmText.textContent = `Tem certeza que deseja excluir "${t.title}"? Esta ação não pode ser desfeita.`;
+    D.confirmOk.textContent = 'Excluir';
+    D.confirmOk.className = 'btn-confirm-delete';
+
+    D.confirmDialog.classList.add('active');
+  }
+
+  async function handleDeleteTicket() {
+    if (!deleteTicketId) return;
+
+    const id = deleteTicketId;
+    const t = tickets.find(x => x.id === id);
+    const title = t?.title || id;
+
+    tickets = tickets.filter(x => x.id !== id);
+
+    D.confirmDialog.classList.remove('active');
+    D.detailModal.classList.remove('active');
+
+    renderBoard();
+    deleteTicketId = null;
+    toast(`Chamado #${id} "${title}" excluído.`, 'info');
+
+    try {
+      await deleteTicketFromDB(id);
+    } catch (error) {
+      console.error('Erro ao excluir do Supabase:', error);
+      toast('Erro ao excluir do servidor. Recarregue a página.', 'error');
+    }
+  }
+
+  /* ═══════════════════════════════════════
      DETAIL MODAL
   ═══════════════════════════════════════ */
- async function openDetail(id) {
-  tkId = id;
-  const t = tickets.find((x) => x.id === id);
-  if (!t) return;
+  async function openDetail(id) {
+    tkId = id;
+    editMode = false;
+    editingCommentId = null;
+    deleteTicketId = null;
+    deleteCommentId = null;
+    const t = tickets.find((x) => x.id === id);
+    if (!t) return;
 
-  const col = columns.find((c) => c.id === t.status);
+    const col = columns.find((c) => c.id === t.status);
 
-  D.modalId.textContent = `#${t.id}`;
-  D.modalTitle.textContent = t.title;
-  D.modalDescription.textContent = t.description;
+    D.modalId.textContent = `#${t.id}`;
+    D.modalTitle.textContent = t.title;
+    D.modalDescription.textContent = t.description;
 
-  D.modalDetails.innerHTML = `
-    <div class="detail-item">
-      <span class="detail-label">Tipo</span>
-      <span class="detail-value">
-        <span class="card-type ${t.type}">${t.type === 'bug' ? 'Bug' : 'Melhoria'}</span>
-      </span>
-    </div>
-    <div class="detail-item">
-      <span class="detail-label">Prioridade</span>
-      <span class="detail-value">
-        <div class="card-priority ${t.priority}"></div> ${cap(t.priority)}
-      </span>
-    </div>
-    <div class="detail-item">
-      <span class="detail-label">Módulo</span>
-      <span class="detail-value">${esc(t.module || 'Não informado')}</span>
-    </div>
-    <div class="detail-item">
-      <span class="detail-label">Cliente</span>
-      <span class="detail-value">${esc(t.client || 'Não informado')}</span>
-    </div>
-    <div class="detail-item">
-      <span class="detail-label">Status</span>
-      <span class="detail-value">${esc(col?.name || t.status)}</span>
-    </div>
-    <div class="detail-item">
-      <span class="detail-label">Criado por</span>
-      <span class="detail-value">${esc(t.author)}</span>
-    </div>
-    <div class="detail-item">
-      <span class="detail-label">Criado em</span>
-      <span class="detail-value">${new Date(t.createdAt).toLocaleString('pt-BR')}</span>
-    </div>
-    <div class="detail-item">
-      <span class="detail-label">Atualizado em</span>
-      <span class="detail-value">${new Date(t.updatedAt).toLocaleString('pt-BR')}</span>
-    </div>`;
+    D.modalDetails.innerHTML = `
+      <div class="detail-item">
+        <span class="detail-label">Tipo</span>
+        <span class="detail-value">
+          <span class="card-type ${t.type}">${t.type === 'bug' ? 'Bug' : 'Melhoria'}</span>
+        </span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Prioridade</span>
+        <span class="detail-value">
+          <div class="card-priority ${t.priority}"></div> ${cap(t.priority)}
+        </span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Módulo</span>
+        <span class="detail-value">${esc(t.module || 'Não informado')}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Cliente</span>
+        <span class="detail-value">${esc(t.client || 'Não informado')}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Status</span>
+        <span class="detail-value">${esc(col?.name || t.status)}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Criado por</span>
+        <span class="detail-value">${esc(t.author)}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Criado em</span>
+        <span class="detail-value">${new Date(t.createdAt).toLocaleString('pt-BR')}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Atualizado em</span>
+        <span class="detail-value">${new Date(t.updatedAt).toLocaleString('pt-BR')}</span>
+      </div>`;
 
-  // Busca anexos do ticket e dos comentários no Supabase
-  D.attachSection.style.display = 'block';
-  D.attachGrid.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">Carregando anexos...</p>';
+    const oldActions = document.getElementById('editActions');
+    if (oldActions) oldActions.remove();
 
-  try {
-    const allAttachments = await sbRequest(
-      `attachments?ticket_id=eq.${id}&select=id,ticket_id,comment_id,name,url`
-    );
-
-    // Anexos diretos do ticket (sem comment_id)
-    t.attachments = allAttachments
-      .filter((a) => !a.comment_id)
-      .map((a) => ({ name: a.name, data: a.url }));
-
-    // Anexos vinculados aos comentários
-    if (t.comments) {
-      t.comments.forEach((comment) => {
-        comment.attachments = allAttachments
-          .filter((a) => a.comment_id === comment.id)
-          .map((a) => ({ name: a.name, data: a.url }));
-      });
+    if (D.btnEditTicket) {
+      D.btnEditTicket.style.display = 'flex';
     }
-  } catch (error) {
-    console.error('Erro ao carregar anexos:', error);
-  }
 
-  // Renderiza a galeria do ticket
-  if (t.attachments && t.attachments.length > 0) {
+    if (D.btnDeleteTicket) {
+      D.btnDeleteTicket.style.display = user.role === 'admin' ? 'flex' : 'none';
+    }
+
     D.attachSection.style.display = 'block';
-    D.attachGrid.innerHTML = t.attachments
-      .map(
-        (a, i) =>
-          `<div class="attach-thumb" data-idx="${i}">
-            <img src="${a.data}" alt="${esc(a.name)}">
-          </div>`
-      )
-      .join('');
+    D.attachGrid.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">Carregando anexos...</p>';
 
-    D.attachGrid.querySelectorAll('.attach-thumb').forEach((th) => {
-      th.addEventListener('click', () => {
-        openLightbox(t.attachments[parseInt(th.dataset.idx)].data);
+    try {
+      const allAttachments = await sbRequest(
+        `attachments?ticket_id=eq.${id}&select=id,ticket_id,comment_id,name,url`
+      );
+
+      t.attachments = allAttachments
+        .filter((a) => !a.comment_id)
+        .map((a) => ({ name: a.name, data: a.url }));
+
+      if (t.comments) {
+        t.comments.forEach((comment) => {
+          comment.attachments = allAttachments
+            .filter((a) => a.comment_id === comment.id)
+            .map((a) => ({ name: a.name, data: a.url }));
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar anexos:', error);
+    }
+
+    if (t.attachments && t.attachments.length > 0) {
+      D.attachSection.style.display = 'block';
+      D.attachGrid.innerHTML = t.attachments
+        .map(
+          (a, i) =>
+            `<div class="attach-thumb" data-idx="${i}">
+              <img src="${a.data}" alt="${esc(a.name)}">
+            </div>`
+        )
+        .join('');
+
+      D.attachGrid.querySelectorAll('.attach-thumb').forEach((th) => {
+        th.addEventListener('click', () => {
+          openLightbox(t.attachments[parseInt(th.dataset.idx)].data);
+        });
       });
-    });
-  } else {
-    D.attachSection.style.display = 'none';
-    D.attachGrid.innerHTML = '';
-  }
+    } else {
+      D.attachSection.style.display = 'none';
+      D.attachGrid.innerHTML = '';
+    }
 
-  // Controles de Administrador
-  if (user.role === 'admin') {
-    D.adminControls.classList.add('visible');
-    D.statusButtons.innerHTML = columns
-      .map((c) => {
-        const cur = t.status === c.id;
-        return `<button class="status-btn ${cur ? 'current' : ''}" data-status="${c.id}"
-          style="${cur ? `border-color:${c.color};color:${c.color};background:${c.color}20` : ''}">
-          ${esc(c.name)}
-        </button>`;
-      })
-      .join('');
+    if (user.role === 'admin') {
+      D.adminControls.classList.add('visible');
+      D.statusButtons.innerHTML = columns
+        .map((c) => {
+          const cur = t.status === c.id;
+          return `<button class="status-btn ${cur ? 'current' : ''}" data-status="${c.id}"
+            style="${cur ? `border-color:${c.color};color:${c.color};background:${c.color}20` : ''}">
+            ${esc(c.name)}
+          </button>`;
+        })
+        .join('');
 
-    D.statusButtons.querySelectorAll('.status-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const ns = btn.dataset.status;
-        if (t.status !== ns) {
-          t.status = ns;
-          t.updatedAt = new Date().toISOString();
-          saveSingleTicket(t);
-          renderBoard();
-          openDetail(id);
-          const cn = columns.find((c) => c.id === ns)?.name || ns;
-          toast(`Status → "${cn}"`, 'success');
-        }
+      D.statusButtons.querySelectorAll('.status-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const ns = btn.dataset.status;
+          if (t.status !== ns) {
+            t.status = ns;
+            t.updatedAt = new Date().toISOString();
+            saveSingleTicket(t);
+            renderBoard();
+            openDetail(id);
+            const cn = columns.find((c) => c.id === ns)?.name || ns;
+            toast(`Status → "${cn}"`, 'success');
+          }
+        });
       });
-    });
-  } else {
-    D.adminControls.classList.remove('visible');
-  }
+    } else {
+      D.adminControls.classList.remove('visible');
+    }
 
-  renderComments(t);
-  D.detailModal.classList.add('active');
-}
+    renderComments(t);
+    D.detailModal.classList.add('active');
+  }
 
   /* ═══════════════════════════════════════
      LIGHTBOX
   ═══════════════════════════════════════ */
   function openLightbox(src) {
-  if (!D.lightbox || !D.lightboxImg) return;
-  D.lightboxImg.src = src;
-  D.lightbox.classList.add('active');
-}
-
-if (D.lightboxClose) {
-  D.lightboxClose.addEventListener('click', () => {
-    D.lightbox.classList.remove('active');
-  });
-}
-
-if (D.lightbox) {
-  D.lightbox.addEventListener('click', (e) => {
-    if (e.target === D.lightbox) {
-      D.lightbox.classList.remove('active');
-    }
-  });
-}
+    if (!D.lightbox || !D.lightboxImg) return;
+    D.lightboxImg.src = src;
+    D.lightbox.classList.add('active');
+  }
 
   function closeLightbox() {
     D.lightbox.classList.remove('active');
     D.lightboxImg.src = '';
   }
 
+
   /* ═══════════════════════════════════════
      COMMENTS
   ═══════════════════════════════════════ */
-  function renderComments(t) {
+  function canEditComment(comment) {
+    return user.role === 'admin' || comment.author === user.name;
+  }
+
+   function renderComments(t) {
     if (!t.comments || !t.comments.length) {
       D.commentsList.innerHTML =
         '<p style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:16px 0;">Nenhum comentário ainda.</p>';
@@ -1313,7 +1641,7 @@ if (D.lightbox) {
     }
 
     D.commentsList.innerHTML = t.comments
-      .map((c) => {
+      .map((c, cIdx) => {
         const ini = c.author
           .split(' ')
           .map((w) => w[0])
@@ -1327,8 +1655,38 @@ if (D.lightbox) {
           minute: '2-digit',
         });
 
+        const isEditing = String(editingCommentId) === String(c.id);
+        const canEdit = canEditComment(c);
+
+        const actionsHTML = (canEdit && !isEditing)
+          ? `<div class="comment-actions">
+              <button class="comment-action-btn comment-edit-btn" data-cid="${c.id}" title="Editar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                </svg>
+              </button>
+              <button class="comment-action-btn comment-delete-btn" data-cid="${c.id}" title="Excluir">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M3 6h18"/>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                </svg>
+              </button>
+            </div>`
+          : '';
+
+        const textHTML = isEditing
+          ? `<div class="comment-edit-area">
+              <textarea class="comment-edit-textarea" data-cid="${c.id}">${esc(c.text)}</textarea>
+              <div class="comment-edit-actions">
+                <button class="btn-comment-edit-cancel" data-cid="${c.id}">Cancelar</button>
+                <button class="btn-comment-edit-save" data-cid="${c.id}">Salvar</button>
+              </div>
+            </div>`
+          : `<p class="comment-text">${esc(c.text)}</p>`;
+
         return `
-          <div class="comment">
+          <div class="comment ${isEditing ? 'comment-editing' : ''}">
             <div class="comment-avatar ${c.role}">${ini}</div>
             <div class="comment-body">
               <div class="comment-header">
@@ -1337,14 +1695,15 @@ if (D.lightbox) {
                   ${c.role === 'admin' ? 'Admin' : 'Usuário'}
                 </span>
                 <span class="comment-time">${time}</span>
+                ${actionsHTML}
               </div>
-              <p class="comment-text">${esc(c.text)}</p>
+              ${textHTML}
               ${
-                c.attachments?.length
+                c.attachments?.length && !isEditing
                   ? `<div class="comment-attachments">${c.attachments
                       .map(
                         (attachment, attachmentIndex) =>
-                          `<img src="${attachment.data}" alt="${esc(attachment.name)}" title="${esc(attachment.name)}" data-comment-index="${t.comments.indexOf(c)}" data-attachment-index="${attachmentIndex}">`
+                          `<img src="${attachment.data}" alt="${esc(attachment.name)}" title="${esc(attachment.name)}" data-comment-index="${cIdx}" data-attachment-index="${attachmentIndex}">`
                       )
                       .join('')}</div>`
                   : ''
@@ -1361,6 +1720,163 @@ if (D.lightbox) {
         if (attachment) openLightbox(attachment.data);
       });
     });
+
+    const editTa = D.commentsList.querySelector('.comment-edit-textarea');
+    if (editTa) {
+      editTa.focus();
+      editTa.setSelectionRange(editTa.value.length, editTa.value.length);
+      editTa.style.height = 'auto';
+      editTa.style.height = Math.min(editTa.scrollHeight, 150) + 'px';
+      editTa.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+      });
+      editTa.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          saveCommentEdit(editTa.dataset.cid);
+        }
+        if (e.key === 'Escape') {
+          editingCommentId = null;
+          const tk = tickets.find(x => x.id === tkId);
+          if (tk) renderComments(tk);
+        }
+      });
+    }
+  }
+
+  function setupCommentDelegation() {
+    D.commentsList.addEventListener('click', (e) => {
+      const editBtn = e.target.closest('.comment-edit-btn');
+      const deleteBtn = e.target.closest('.comment-delete-btn');
+      const saveBtn = e.target.closest('.btn-comment-edit-save');
+      const cancelBtn = e.target.closest('.btn-comment-edit-cancel');
+
+      if (editBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        startEditComment(editBtn.dataset.cid);
+      } else if (deleteBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        confirmDeleteComment(deleteBtn.dataset.cid);
+      } else if (saveBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        saveCommentEdit(saveBtn.dataset.cid);
+      } else if (cancelBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        editingCommentId = null;
+        const t = tickets.find(x => x.id === tkId);
+        if (t) renderComments(t);
+      }
+    });
+  }
+
+   function startEditComment(commentId) {
+    editingCommentId = String(commentId);
+    const t = tickets.find(x => x.id === tkId);
+    if (t) renderComments(t);
+  }
+
+  function saveCommentEdit(commentId) {
+    const t = tickets.find(x => x.id === tkId);
+    if (!t) return;
+
+    const comment = t.comments.find(c => String(c.id) === String(commentId));
+    if (!comment) {
+      console.error('[EDIT] Comentário não encontrado:', commentId);
+      toast('Comentário não encontrado.', 'error');
+      return;
+    }
+
+    const textarea = D.commentsList.querySelector('.comment-edit-textarea');
+    if (!textarea) return;
+
+    const newText = textarea.value.trim();
+    if (!newText) {
+      toast('O comentário não pode ficar vazio.', 'error');
+      textarea.focus();
+      return;
+    }
+
+    if (newText === comment.text) {
+      editingCommentId = null;
+      renderComments(t);
+      return;
+    }
+
+    comment.text = newText;
+    editingCommentId = null;
+
+    updateCommentInDB(commentId, newText)
+      .then(() => toast('Comentário atualizado!', 'success'))
+      .catch(err => {
+        console.error(err);
+        toast('Erro ao atualizar no servidor.', 'error');
+      });
+
+    renderComments(t);
+    renderBoard();
+  }
+
+  function confirmDeleteComment(commentId) {
+    const t = tickets.find(x => x.id === tkId);
+    if (!t) return;
+
+    const comment = t.comments.find(c => String(c.id) === String(commentId));
+    if (!comment) {
+      console.error('[DELETE] Comentário não encontrado:', commentId);
+      return;
+    }
+
+    deleteCommentId = String(commentId);
+    deleteTicketId = null;
+    delColId = null;
+
+    D.confirmTitle.textContent = 'Excluir comentário?';
+    D.confirmText.textContent = `Comentário de ${comment.author}: "${comment.text.substring(0, 80)}${comment.text.length > 80 ? '...' : ''}"`;
+    D.confirmOk.textContent = 'Excluir';
+    D.confirmOk.className = 'btn-confirm-delete';
+
+    D.confirmDialog.classList.add('active');
+  }
+
+  async function handleDeleteComment() {
+    if (!deleteCommentId) return;
+
+    const t = tickets.find(x => x.id === tkId);
+    if (!t) return;
+
+    const commentId = deleteCommentId;
+    const commentIdx = t.comments.findIndex(c => String(c.id) === String(commentId));
+    if (commentIdx < 0) {
+      console.error('[DELETE] Comentário não encontrado no array:', commentId);
+      D.confirmDialog.classList.remove('active');
+      deleteCommentId = null;
+      return;
+    }
+
+    // Remove from local state
+    t.comments.splice(commentIdx, 1);
+    t.updatedAt = new Date().toISOString();
+
+    D.confirmDialog.classList.remove('active');
+    deleteCommentId = null;
+
+    renderComments(t);
+    renderBoard();
+    toast('Comentário excluído.', 'info');
+
+    // Persist to Supabase
+    try {
+      await deleteCommentFromDB(commentId);
+      await saveSingleTicket(t);
+    } catch (error) {
+      console.error('Erro ao excluir comentário do Supabase:', error);
+      toast('Erro ao excluir do servidor. Recarregue a página.', 'error');
+    }
   }
 
   function submitComment() {
@@ -1372,20 +1888,30 @@ if (D.lightbox) {
 
     if (!t.comments) t.comments = [];
 
-    t.comments.push({
+    const newCommentData = {
+      id: 'temp_' + Date.now(),
       author: user.name,
       role: user.role,
       text,
       createdAt: new Date().toISOString(),
       attachments: [...pendingCommentAttachments],
-    });
+    };
 
-    const newComment = t.comments[t.comments.length - 1];
+    t.comments.push(newCommentData);
     t.updatedAt = new Date().toISOString();
-    Promise.all([saveSingleTicket(t), saveComment(t, newComment)]).catch((error) => {
-      console.error(error);
-      toast('Não foi possível salvar o comentário no Supabase.', 'error');
-    });
+
+    saveComment(t, newCommentData)
+      .then((savedComment) => {
+        if (savedComment && savedComment.id) {
+          newCommentData.id = savedComment.id;
+        }
+        return saveSingleTicket(t);
+      })
+      .catch((error) => {
+        console.error(error);
+        toast('Não foi possível salvar o comentário no Supabase.', 'error');
+      });
+
     renderComments(t);
     renderBoard();
 
@@ -1480,12 +2006,17 @@ if (D.lightbox) {
 
     const n = tickets.filter((t) => t.status === id).length;
     delColId = id;
+    deleteTicketId = null;
+    deleteCommentId = null;
 
     D.confirmTitle.textContent = `Excluir "${c.name}"?`;
     D.confirmText.textContent =
       n > 0
         ? `Coluna com ${n} chamado(s). Eles serão movidos para a primeira coluna.`
         : 'Ação irreversível.';
+
+    D.confirmOk.textContent = 'Excluir';
+    D.confirmOk.className = 'btn-confirm-delete';
 
     D.confirmDialog.classList.add('active');
   }
@@ -1580,9 +2111,26 @@ if (D.lightbox) {
 
     URL.revokeObjectURL(url);
     toast(`Exportado ${tickets.length} chamado(s)!`, 'success');
-}
+  }
 
   function bind() {
+    setupCommentDelegation();
+
+    D.btnSendComment.addEventListener('click', submitComment);
+    D.commentAttachInput.addEventListener('change', () => {
+      processFiles(D.commentAttachInput.files, pendingCommentAttachments, renderCommentAttachPreviews);
+      D.commentAttachInput.value = '';
+    });
+    D.commentInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitComment();
+      }
+    });
+    D.commentInput.addEventListener('input', function () {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
     applyTheme(localStorage.getItem(SK.theme) || 'dark');
     D.themeToggle.addEventListener('click', () => {
       const nextTheme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
@@ -1646,6 +2194,52 @@ if (D.lightbox) {
       });
     }
 
+    // Date filter
+if (D.dateFrom) {
+  D.dateFrom.addEventListener('change', (e) => {
+    dateFrom = e.target.value;
+    renderBoard();
+  });
+}
+if (D.dateTo) {
+  D.dateTo.addEventListener('change', (e) => {
+    dateTo = e.target.value;
+    renderBoard();
+  });
+}
+// Limpar TODOS os filtros
+if (D.clearAllFilters) {
+  D.clearAllFilters.addEventListener('click', () => {
+    // Resetar variaveis de estado
+    filter = 'all';
+    moduleFilter = 'all';
+    clientFilter = 'all';
+    searchQuery = '';
+    dateFrom = '';
+    dateTo = '';
+
+    // Resetar botoes de tipo
+    document.querySelectorAll('.filter-btn').forEach((b) => {
+      b.classList.remove('active', 'active-bug', 'active-improvement');
+    });
+    document.querySelector('.filter-btn[data-filter="all"]')?.classList.add('active');
+
+    // Resetar selects
+    if (D.moduleFilter) D.moduleFilter.value = 'all';
+    if (D.clientFilter) D.clientFilter.value = 'all';
+
+    // Resetar busca
+    if (D.searchInput) D.searchInput.value = '';
+
+    // Resetar datas
+    if (D.dateFrom) D.dateFrom.value = '';
+    if (D.dateTo) D.dateTo.value = '';
+
+    renderBoard();
+    toast('Filtros limpos!', 'success');
+  });
+}
+
     if (D.searchClear) {
       D.searchClear.addEventListener('click', () => {
         searchQuery = '';
@@ -1659,6 +2253,16 @@ if (D.lightbox) {
     D.modalClose.addEventListener('click', () => {
       D.detailModal.classList.remove('active');
     });
+
+    // Edit ticket button
+    if (D.btnEditTicket) {
+      D.btnEditTicket.addEventListener('click', enterEditMode);
+    }
+
+    // Delete ticket button
+    if (D.btnDeleteTicket) {
+      D.btnDeleteTicket.addEventListener('click', confirmDeleteTicket);
+    }
 
     // Comments
     D.btnSendComment.addEventListener('click', submitComment);
@@ -1691,12 +2295,22 @@ if (D.lightbox) {
     });
     D.btnSubmitColumn.addEventListener('click', submitCol);
 
-    // Confirm dialog
+    // Confirm dialog — unified handler
     D.confirmCancel.addEventListener('click', () => {
       D.confirmDialog.classList.remove('active');
       delColId = null;
+      deleteTicketId = null;
+      deleteCommentId = null;
     });
-    D.confirmOk.addEventListener('click', handleDel);
+    D.confirmOk.addEventListener('click', () => {
+      if (deleteCommentId) {
+        handleDeleteComment();
+      } else if (deleteTicketId) {
+        handleDeleteTicket();
+      } else if (delColId) {
+        handleDel();
+      }
+    });
 
     // Lightbox
     D.lightbox.addEventListener('click', (e) => {
@@ -1729,7 +2343,6 @@ if (D.lightbox) {
       hasSession = await restoreSession();
     } catch (e) {}
 
-    // Só carrega se logado
     if (hasSession) {
       try {
         await load();
@@ -1747,7 +2360,7 @@ if (D.lightbox) {
     } else {
       D.loginScreen.classList.remove('hidden');
     }
-}
-boot();
+  }
+  boot();
 
 })();

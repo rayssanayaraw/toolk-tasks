@@ -1819,7 +1819,7 @@ body::before {
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
-  z-index: 600;
+  z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2160,4 +2160,450 @@ body::before {
   border-color: var(--accent-hover);
   color: var(--accent-hover);
   background: var(--accent-hover-bg);
+}
+/* ═══════════════════════════════════════
+   EDIT TICKET MODE
+═══════════════════════════════════════ */
+
+.modal-header-top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-edit-ticket,
+.btn-delete-ticket {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: var(--surface-hover, rgba(255,255,255,0.06));
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-edit-ticket:hover {
+  color: var(--accent);
+  background: rgba(232, 197, 71, 0.12);
+  transform: scale(1.05);
+}
+
+.btn-delete-ticket:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  transform: scale(1.05);
+}
+
+.btn-edit-ticket:active,
+.btn-delete-ticket:active {
+  transform: scale(0.95);
+}
+
+.btn-edit-ticket svg,
+.btn-delete-ticket svg {
+  width: 15px;
+  height: 15px;
+}
+
+.edit-input-title {
+  display: block;
+  width: 100%;
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
+  line-height: inherit;
+  background: var(--surface);
+  border: 1.5px solid var(--border, rgba(255,255,255,0.12));
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.edit-input-title:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 197, 71, 0.12);
+}
+
+.edit-textarea {
+  display: block;
+  width: 100%;
+  min-height: 110px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  background: var(--surface);
+  border: 1.5px solid var(--border, rgba(255,255,255,0.12));
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.edit-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 197, 71, 0.12);
+}
+
+.edit-select {
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.85rem;
+  background: var(--surface);
+  border: 1.5px solid var(--border, rgba(255,255,255,0.12));
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  appearance: auto;
+}
+
+.edit-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 197, 71, 0.12);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 18px;
+  border-top: 1px solid var(--border, rgba(255,255,255,0.08));
+  margin-top: 18px;
+}
+
+.btn-edit-save {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  letter-spacing: 0.01em;
+}
+
+.btn-edit-save:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-edit-save:active {
+  transform: translateY(0);
+}
+
+.btn-edit-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+.btn-edit-cancel {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border, rgba(255,255,255,0.12));
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.btn-edit-cancel:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+  background: var(--surface-hover, rgba(255,255,255,0.04));
+}
+
+/* Light theme overrides */
+[data-theme="light"] .btn-edit-ticket,
+[data-theme="light"] .btn-delete-ticket {
+  background: rgba(0,0,0,0.04);
+}
+
+[data-theme="light"] .btn-edit-ticket:hover {
+  background: rgba(232, 197, 71, 0.15);
+}
+
+[data-theme="light"] .btn-delete-ticket:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+[data-theme="light"] .edit-input-title,
+[data-theme="light"] .edit-textarea,
+[data-theme="light"] .edit-select {
+  border-color: rgba(0,0,0,0.15);
+  background: #fff;
+}
+
+[data-theme="light"] .edit-input-title:focus,
+[data-theme="light"] .edit-textarea:focus,
+[data-theme="light"] .edit-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 197, 71, 0.15);
+}
+
+/* ═══════════════════════════════════════
+   COMMENT EDIT & DELETE
+═══════════════════════════════════════ */
+
+.comment-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.comment:hover .comment-actions {
+  opacity: 1;
+}
+
+.comment-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.comment-action-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.comment-edit-btn:hover {
+  color: var(--accent);
+  background: rgba(232, 197, 71, 0.12);
+}
+
+.comment-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.comment-action-btn:active {
+  transform: scale(0.9);
+}
+
+/* Edit mode */
+.comment-editing {
+  background: var(--surface, rgba(255,255,255,0.03));
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.comment-edit-area {
+  margin-top: 6px;
+}
+
+.comment-edit-textarea {
+  display: block;
+  width: 100%;
+  min-height: 60px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  background: var(--bg, #0d0d0d);
+  border: 1.5px solid var(--border, rgba(255,255,255,0.12));
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text-primary);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.comment-edit-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 197, 71, 0.12);
+}
+
+.comment-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.btn-comment-edit-save {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.btn-comment-edit-save:hover {
+  filter: brightness(1.1);
+}
+
+.btn-comment-edit-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-comment-edit-cancel {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border, rgba(255,255,255,0.12));
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.btn-comment-edit-cancel:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+/* Light theme */
+[data-theme="light"] .comment-action-btn {
+  background: transparent;
+}
+
+[data-theme="light"] .comment-edit-btn:hover {
+  background: rgba(232, 197, 71, 0.15);
+}
+
+[data-theme="light"] .comment-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+[data-theme="light"] .comment-edit-textarea {
+  border-color: rgba(0,0,0,0.15);
+  background: #fff;
+}
+
+[data-theme="light"] .comment-edit-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 197, 71, 0.15);
+}
+
+[data-theme="light"] .comment-editing {
+  background: rgba(0,0,0,0.02);
+}
+
+/* ═══════════════════════════════════════
+   DATE FILTER
+═══════════════════════════════════════ */
+
+.filter-date-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-date-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.filter-date-input {
+  font-family: inherit;
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 130px;
+}
+
+.filter-date-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(232, 197, 71, 0.12);
+}
+
+.filter-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.filter-date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+.filter-date-clear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  background: #fff;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: var(--radius);
+  color: #142000;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.01em;
+  
+}
+
+.filter-date-clear:hover {
+  transform: translateY(-2px);
+  color: #fff;
+  box-shadow: 0 6px 24px var(--accent-glow);
+  background: #08274C;
+}
+
+/* Light theme */
+[data-theme="light"] .filter-date-input {
+  border-color: rgba(0,0,0,0.15);
+  background: #fff;
+}
+
+[data-theme="light"] .filter-date-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(232, 197, 71, 0.15);
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .filter-date-group {
+    flex-wrap: wrap;
+  }
+  .filter-date-input {
+    width: 110px;
+  }
 }
