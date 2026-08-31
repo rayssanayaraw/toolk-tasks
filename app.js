@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════
- *  TaskFlow — Sistema de Chamados
+ *  Toolk Tasks — Sistema de Chamados
  *  app.js — Toda a lógica da aplicação
  * ═══════════════════════════════════════
  */
@@ -182,6 +182,35 @@
     lightbox: $('lightbox'),
     lightboxImg: $('lightboxImg'),
     lightboxClose: $('lightboxClose'),
+        // Password recovery / change
+    loginForm: $('loginForm'),
+    recoveryForm: $('recoveryForm'),
+    recoveryEmail: $('recoveryEmail'),
+    btnSendRecovery: $('btnSendRecovery'),
+    backToLogin: $('backToLogin'),
+    recoveryMessage: $('recoveryMessage'),
+    forgotPasswordLink: $('forgotPasswordLink'),
+    resetScreen: $('resetScreen'),
+    resetNewPassword: $('resetNewPassword'),
+    resetConfirmPassword: $('resetConfirmPassword'),
+    btnResetPassword: $('btnResetPassword'),
+    resetMessage: $('resetMessage'),
+    btnChangePassword: $('dropdownChangePassword'),
+    changePasswordModal: $('changePasswordModal'),
+    changePasswordClose: $('changePasswordClose'),
+    changeNewPassword: $('changeNewPassword'),
+    changeConfirmPassword: $('changeConfirmPassword'),
+    changePasswordError: $('changePasswordError'),
+    btnSavePassword: $('btnSavePassword'),
+
+    userMenuWrapper: $('userMenuWrapper'),
+    userMenuTrigger: $('userMenuTrigger'),
+    userDropdown: $('userDropdown'),
+    dropdownThemeToggle: $('dropdownThemeToggle'),
+    dropdownManageUsers: $('dropdownManageUsers'),
+    dropdownManageColumns: $('dropdownManageColumns'),
+    dropdownExport: $('dropdownExport'),
+    dropdownLogout: $('dropdownLogout'),
   };
 
   /* ═══════════════════════════════════════
@@ -212,11 +241,13 @@
     }, 3000);
   }
 
-  function applyTheme(theme) {
+    function applyTheme(theme) {
     const isLight = theme === 'light';
     document.documentElement.dataset.theme = isLight ? 'light' : 'dark';
-    D.themeToggle.setAttribute('aria-label', isLight ? 'Ativar modo escuro' : 'Ativar modo claro');
-    D.themeToggle.setAttribute('title', isLight ? 'Ativar modo escuro' : 'Ativar modo claro');
+
+    // Atualizar label se existir
+    const label = document.getElementById('themeLabel');
+    if (label) label.textContent = isLight ? 'Modo escuro' : 'Modo claro';
   }
 
   function generateOptions(list, selected) {
@@ -285,6 +316,176 @@
     localStorage.removeItem(SK.authSession);
   }
 
+    /* ═══════════════════════════════════════
+     PASSWORD RECOVERY
+  ═══════════════════════════════════════ */
+  async function sendRecoveryEmail() {
+    const email = D.recoveryEmail.value.trim();
+    if (!email) {
+      D.recoveryMessage.textContent = 'Informe seu e-mail.';
+      D.recoveryMessage.className = 'login-error';
+      return;
+    }
+
+    D.btnSendRecovery.disabled = true;
+    D.recoveryMessage.textContent = '';
+    D.recoveryMessage.className = 'login-error';
+
+    try {
+      const redirectTo = window.location.origin + window.location.pathname;
+      const response = await fetch(`${SB_AUTH_API}/recover`, {
+        method: 'POST',
+        headers: {
+          apikey: SB_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, redirect_to: redirectTo }),
+      });
+
+      // Sempre mostra sucesso (nao revela se o email existe)
+      D.recoveryMessage.textContent =
+        'Se o e-mail estiver cadastrado, você receberá um link de redefinição em alguns minutos.';
+      D.recoveryMessage.className = 'login-success';
+      D.recoveryEmail.value = '';
+    } catch (error) {
+      D.recoveryMessage.textContent = 'Erro ao enviar. Tente novamente.';
+      D.recoveryMessage.className = 'login-error';
+    } finally {
+      D.btnSendRecovery.disabled = false;
+    }
+  }
+
+  async function handleRecoveryCallback() {
+    const hash = window.location.hash;
+    if (!hash || !hash.includes('type=recovery')) return false;
+
+    const params = new URLSearchParams(hash.substring(1));
+    const type = params.get('type');
+    const accessToken = params.get('access_token');
+
+    if (type === 'recovery' && accessToken) {
+      authSession = { access_token: accessToken };
+
+      // Limpa o hash da URL
+      history.replaceState(null, '', window.location.pathname);
+
+      // Mostra tela de redefinicao
+      D.loginScreen.classList.add('hidden');
+      D.app.classList.remove('active');
+      D.resetScreen.classList.remove('hidden');
+
+      return true;
+    }
+
+    return false;
+  }
+
+  async function resetPassword() {
+    const newPwd = D.resetNewPassword.value;
+    const confirmPwd = D.resetConfirmPassword.value;
+
+    if (!newPwd || newPwd.length < 6) {
+      D.resetMessage.textContent = 'A senha precisa ter pelo menos 6 caracteres.';
+      D.resetMessage.className = 'login-error';
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      D.resetMessage.textContent = 'As senhas não coincidem.';
+      D.resetMessage.className = 'login-error';
+      return;
+    }
+
+    D.btnResetPassword.disabled = true;
+    D.resetMessage.textContent = '';
+
+    try {
+      const response = await fetch(`${SB_AUTH_API}/user`, {
+        method: 'PUT',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${authSession.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: newPwd }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.msg || err.error_description || 'Não foi possível redefinir a senha.');
+      }
+
+      D.resetMessage.textContent = 'Senha redefinida com sucesso! Redirecionando...';
+      D.resetMessage.className = 'login-success';
+      D.resetNewPassword.value = '';
+      D.resetConfirmPassword.value = '';
+
+      authSession = null;
+
+      setTimeout(() => {
+        D.resetScreen.classList.add('hidden');
+        D.loginScreen.classList.remove('hidden');
+        D.loginError.textContent = '';
+        D.loginError.className = 'login-error';
+      }, 2000);
+    } catch (error) {
+      D.resetMessage.textContent = error.message;
+      D.resetMessage.className = 'login-error';
+    } finally {
+      D.btnResetPassword.disabled = false;
+    }
+  }
+
+  /* ═══════════════════════════════════════
+     CHANGE PASSWORD (LOGGED IN)
+  ═══════════════════════════════════════ */
+  function openChangePasswordModal() {
+    D.changeNewPassword.value = '';
+    D.changeConfirmPassword.value = '';
+    D.changePasswordError.textContent = '';
+    D.changePasswordModal.classList.add('active');
+  }
+
+  async function saveNewPassword() {
+    const newPwd = D.changeNewPassword.value;
+    const confirmPwd = D.changeConfirmPassword.value;
+
+    if (!newPwd || newPwd.length < 6) {
+      D.changePasswordError.textContent = 'A senha precisa ter pelo menos 6 caracteres.';
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      D.changePasswordError.textContent = 'As senhas não coincidem.';
+      return;
+    }
+
+    D.btnSavePassword.disabled = true;
+    D.changePasswordError.textContent = '';
+
+    try {
+      const response = await fetch(`${SB_AUTH_API}/user`, {
+        method: 'PUT',
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${authSession.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: newPwd }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.msg || err.error_description || 'Não foi possível alterar a senha.');
+      }
+
+      D.changePasswordModal.classList.remove('active');
+      toast('Senha alterada com sucesso!', 'success');
+    } catch (error) {
+      D.changePasswordError.textContent = error.message;
+    } finally {
+      D.btnSavePassword.disabled = false;
+    }
+  }
+
   async function restoreSession() {
     const storedSession = localStorage.getItem(SK.authSession);
     if (!storedSession) return false;
@@ -319,7 +520,7 @@
       const profile = profiles[0];
       if (!profile) throw new Error('Perfil de usuário não encontrado.');
 
-      user = { name: profile.name, role: profile.role };
+            user = { name: profile.name, email: authSession.user.email };
       return true;
     } catch (error) {
       console.error(error);
@@ -330,7 +531,7 @@
     }
   }
 
-  async function createUserByAdmin(name, email, password, role) {
+  async function createUserByAdmin(name, email, password) {
     const response = await fetch(`${SB_FUNCTIONS_API}/create-user`, {
       method: 'POST',
       headers: {
@@ -338,7 +539,7 @@
         Authorization: `Bearer ${authSession.access_token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name, email, password, role }),
+      body: JSON.stringify({ name, email, password, role: 'admin' }),
     });
 
     const result = await response.json().catch(() => ({}));
@@ -366,7 +567,6 @@
         priority: ticket.priority,
         status: ticket.status,
         author: ticket.author,
-        authorRole: ticket.author_role,
         createdAt: ticket.created_at,
         updatedAt: ticket.updated_at,
         comments: remoteComments
@@ -374,7 +574,6 @@
           .map((comment) => ({
             id: comment.id,
             author: comment.author,
-            role: comment.role,
             text: comment.text,
             createdAt: comment.created_at,
             attachments: remoteAttachments
@@ -412,7 +611,7 @@
           priority: ticket.priority,
           status: ticket.status,
           author: ticket.author,
-          author_role: ticket.authorRole,
+          author_role: 'admin',
           created_at: ticket.createdAt,
           updated_at: ticket.updatedAt,
         }))
@@ -434,7 +633,7 @@
         priority: ticket.priority,
         status: ticket.status,
         author: ticket.author,
-        author_role: ticket.authorRole,
+        author_role: 'admin',
         created_at: ticket.createdAt,
         updated_at: ticket.updatedAt,
       }),
@@ -505,7 +704,6 @@
     }
   }
 
-    /* ── saveComment ── agora retorna o comentario salvo */
   async function saveComment(ticket, comment) {
     const savedComments = await sbRequest('comments', {
       method: 'POST',
@@ -513,7 +711,7 @@
       body: JSON.stringify({
         ticket_id: ticket.id,
         author: comment.author,
-        role: comment.role,
+        role: 'admin',
         text: comment.text,
         created_at: comment.createdAt,
       }),
@@ -541,72 +739,6 @@
     return savedComment;
   }
 
-  /* ── submitComment ── atualiza o ID local com o UUID real */
-  function submitComment() {
-    const text = D.commentInput.value.trim();
-    if (!text || !tkId) return;
-
-    const t = tickets.find((x) => x.id === tkId);
-    if (!t) return;
-
-    if (!t.comments) t.comments = [];
-
-    const newCommentData = {
-      id: 'temp_' + Date.now(),
-      author: user.name,
-      role: user.role,
-      text,
-      createdAt: new Date().toISOString(),
-      attachments: [...pendingCommentAttachments],
-    };
-
-    t.comments.push(newCommentData);
-    t.updatedAt = new Date().toISOString();
-
-    saveComment(t, newCommentData)
-      .then((savedComment) => {
-        if (savedComment && savedComment.id) {
-          newCommentData.id = savedComment.id;
-          console.log('[COMMENT] ID atualizado:', savedComment.id);
-        }
-        return saveSingleTicket(t);
-      })
-      .catch((error) => {
-        console.error(error);
-        toast('Não foi possível salvar o comentário no Supabase.', 'error');
-      });
-
-    renderComments(t);
-    renderBoard();
-
-    D.commentInput.value = '';
-    D.commentInput.style.height = 'auto';
-    pendingCommentAttachments = [];
-    D.commentAttachInput.value = '';
-    D.commentAttachPreviews.innerHTML = '';
-    toast('Comentário adicionado!', 'success');
-  }
-
-  /* ── confirmDeleteComment ── reseta delColId tambem */
-  function confirmDeleteComment(commentId) {
-    const t = tickets.find(x => x.id === tkId);
-    if (!t) return;
-
-    const comment = t.comments.find(c => c.id === commentId);
-    if (!comment) return;
-
-    deleteCommentId = commentId;
-    deleteTicketId = null;
-    delColId = null;
-
-    D.confirmTitle.textContent = 'Excluir comentário?';
-    D.confirmText.textContent = `Comentário de ${comment.author}: "${comment.text.substring(0, 80)}${comment.text.length > 80 ? '...' : ''}"`;
-    D.confirmOk.textContent = 'Excluir';
-    D.confirmOk.className = 'btn-confirm-delete';
-
-    D.confirmDialog.classList.add('active');
-  }
-
   async function updateCommentInDB(commentId, newText) {
     await sbRequest(`comments?id=eq.${commentId}`, {
       method: 'PATCH',
@@ -615,11 +747,9 @@
   }
 
   async function deleteCommentFromDB(commentId) {
-    // Deletar anexos do comentário
     await sbRequest(`attachments?comment_id=eq.${commentId}`, {
       method: 'DELETE',
     });
-    // Deletar o comentário
     await sbRequest(`comments?id=eq.${commentId}`, {
       method: 'DELETE',
     });
@@ -761,7 +891,7 @@
         return;
       }
 
-      user = { name: profile.name, role: profile.role };
+            user = { name: profile.name, email: authSession.user.email };
     } catch (error) {
       authSession = null;
       D.loginError.textContent = error.message === 'Invalid login credentials'
@@ -775,11 +905,15 @@
     D.loginError.textContent = '';
     D.loginScreen.classList.add('hidden');
     D.app.classList.add('active');
+    await load();
+
     setupUI();
+    
     renderBoard();
+    handleTicketHash();
   }
 
-  function setupUI() {
+    function setupUI() {
     const ini = user.name
       .split(' ')
       .map((w) => w[0])
@@ -788,13 +922,30 @@
       .slice(0, 2);
 
     D.userAvatar.textContent = ini;
-    D.userAvatar.className = 'user-avatar ' + user.role;
     D.userName.textContent = user.name;
-    D.roleTag.textContent = user.role === 'admin' ? 'Admin' : 'Usuário';
-    D.roleTag.className = 'role-tag ' + user.role;
-    D.btnManageColumns.style.display = user.role === 'admin' ? 'flex' : 'none';
-    D.btnManageUsers.style.display = user.role === 'admin' ? 'flex' : 'none';
-    D.btnExport.style.display = user.role === 'admin' ? 'flex' : 'none';
+
+    // Dropdown header
+    const dropdownAvatar = document.getElementById('dropdownAvatar');
+    const dropdownUserName = document.getElementById('dropdownUserName');
+    const dropdownUserEmail = document.getElementById('dropdownUserEmail');
+
+    if (dropdownAvatar) {
+      dropdownAvatar.textContent = ini;
+    }
+    if (dropdownUserName) {
+      dropdownUserName.textContent = user.name;
+    }
+    if (dropdownUserEmail) {
+      dropdownUserEmail.textContent = user.email || '';
+    }
+
+    updateThemeLabel();
+  }
+
+  function updateThemeLabel() {
+    const isDark = document.documentElement.dataset.theme !== 'light';
+    const label = document.getElementById('themeLabel');
+    if (label) label.textContent = isDark ? 'Modo claro' : 'Modo escuro';
   }
 
   async function loadRegisteredUsers() {
@@ -810,7 +961,6 @@
           (profile) =>
             `<div class="registered-user">
               <span class="registered-user-name">${esc(profile.name)}</span>
-              <span class="role-tag ${profile.role}">${profile.role === 'admin' ? 'Admin' : 'Usuário'}</span>
             </div>`
         )
         .join('');
@@ -824,7 +974,6 @@
     D.newUserName.value = '';
     D.newUserEmail.value = '';
     D.newUserPassword.value = '';
-    D.newUserRole.value = 'user';
     D.userFormError.textContent = '';
     D.userModal.classList.add('active');
     await loadRegisteredUsers();
@@ -834,7 +983,6 @@
     const name = D.newUserName.value.trim();
     const email = D.newUserEmail.value.trim();
     const password = D.newUserPassword.value;
-    const role = D.newUserRole.value;
 
     if (!name || !email || !password) {
       D.userFormError.textContent = 'Preencha todos os campos.';
@@ -848,7 +996,7 @@
     D.btnSubmitUser.disabled = true;
     D.userFormError.textContent = '';
     try {
-      await createUserByAdmin(name, email, password, role);
+      await createUserByAdmin(name, email, password);
       D.userModal.classList.remove('active');
       await loadRegisteredUsers();
       toast('Colaborador cadastrado com sucesso!', 'success');
@@ -891,18 +1039,20 @@
           (moduleFilter === 'all' || ticket.module === moduleFilter) &&
           (clientFilter === 'all' || ticket.client === clientFilter);
         if (!baseFilter) return false;
+
         if (dateFrom || dateTo) {
-    const ticketDate = new Date(ticket.createdAt);
-    ticketDate.setHours(0, 0, 0, 0);
-    if (dateFrom) {
-      const from = new Date(dateFrom + 'T00:00:00');
-      if (ticketDate < from) return false;
-    }
-    if (dateTo) {
-      const to = new Date(dateTo + 'T23:59:59');
-      if (ticketDate > to) return false;
-    }
-  }
+          const ticketDate = new Date(ticket.createdAt);
+          ticketDate.setHours(0, 0, 0, 0);
+          if (dateFrom) {
+            const from = new Date(dateFrom + 'T00:00:00');
+            if (ticketDate < from) return false;
+          }
+          if (dateTo) {
+            const to = new Date(dateTo + 'T23:59:59');
+            if (ticketDate > to) return false;
+          }
+        }
+
         if (!q) return true;
         const fields = `${ticket.title || ''} ${ticket.description || ''} ${ticket.author || ''}`.toLowerCase();
         const words = q.split(/\s+/).filter(Boolean);
@@ -924,27 +1074,25 @@
       bindColActs(el, col);
     });
 
-    if (user.role === 'admin') {
-      const add = document.createElement('div');
-      add.className = 'add-column-card';
-      add.innerHTML = `
-        <div class="add-column-inner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <line x1="12" y1="8" x2="12" y2="16"/>
-            <line x1="8" y1="12" x2="16" y2="12"/>
-          </svg>
-          <span>Adicionar Coluna</span>
-        </div>`;
-      add.addEventListener('click', openColNew);
-      D.board.appendChild(add);
-    }
+    // Sempre mostra o botao de adicionar coluna
+    const add = document.createElement('div');
+    add.className = 'add-column-card';
+    add.innerHTML = `
+      <div class="add-column-inner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <line x1="12" y1="8" x2="12" y2="16"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+        <span>Adicionar Coluna</span>
+      </div>`;
+    add.addEventListener('click', openColNew);
+    D.board.appendChild(add);
 
     renderStats();
   }
 
   function colHeader(c, n) {
-    const a = user.role === 'admin';
     return `
       <div class="column-header">
         <div class="column-title-group">
@@ -952,30 +1100,24 @@
           <span class="column-title">${esc(c.name)}</span>
         </div>
         <span class="column-count">${n}</span>
-        ${
-          a
-            ? `<div class="column-actions">
-                <button class="col-action-btn edit-col" data-id="${c.id}" title="Editar">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-                  </svg>
-                </button>
-                <button class="col-action-btn delete delete-col" data-id="${c.id}" title="Excluir">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <path d="M3 6h18"/>
-                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                  </svg>
-                </button>
-              </div>`
-            : ''
-        }
+        <div class="column-actions">
+          <button class="col-action-btn edit-col" data-id="${c.id}" title="Editar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+            </svg>
+          </button>
+          <button class="col-action-btn delete delete-col" data-id="${c.id}" title="Excluir">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M3 6h18"/>
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+          </button>
+        </div>
       </div>`;
   }
 
   function setupColumnDrag(element, column) {
-    if (user.role !== 'admin') return;
-
     const header = element.querySelector('.column-header');
     header.draggable = true;
     header.title = 'Arraste para reorganizar a coluna';
@@ -1049,11 +1191,10 @@
 
     body.querySelectorAll('.card').forEach((c) => {
       c.addEventListener('click', () => openDetail(c.dataset.id));
-      if (user.role === 'admin') {
-        c.setAttribute('draggable', 'true');
-        c.addEventListener('dragstart', onDragStart);
-        c.addEventListener('dragend', onDragEnd);
-      }
+      // Drag sempre habilitado
+      c.setAttribute('draggable', 'true');
+      c.addEventListener('dragstart', onDragStart);
+      c.addEventListener('dragend', onDragEnd);
     });
   }
 
@@ -1140,7 +1281,6 @@
      DRAG & DROP
   ═══════════════════════════════════════ */
   function onDragStart(e) {
-    if (user.role !== 'admin') return;
     dragId = e.currentTarget.dataset.id;
     e.currentTarget.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
@@ -1157,7 +1297,6 @@
 
   function setupDrop(body) {
     body.addEventListener('dragover', (e) => {
-      if (user.role !== 'admin') return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       body.classList.add('drag-over');
@@ -1170,7 +1309,7 @@
     body.addEventListener('drop', (e) => {
       e.preventDefault();
       body.classList.remove('drag-over');
-      if (user.role !== 'admin' || !dragId) return;
+      if (!dragId) return;
 
       const ns = body.dataset.status;
       const t = tickets.find((x) => x.id === dragId);
@@ -1252,7 +1391,6 @@
       priority: pri,
       status: columns[0]?.id || 'backlog',
       author: user.name,
-      authorRole: user.role,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       comments: [],
@@ -1372,6 +1510,8 @@
 
     if (D.btnEditTicket) D.btnEditTicket.style.display = 'none';
     if (D.btnDeleteTicket) D.btnDeleteTicket.style.display = 'none';
+    const shareBtn = D.detailModal.querySelector('.btn-share-ticket');
+    if (shareBtn) shareBtn.style.display = 'none';       
 
     titleInput.focus();
     titleInput.select();
@@ -1453,6 +1593,7 @@
 
     D.confirmDialog.classList.remove('active');
     D.detailModal.classList.remove('active');
+    clearTicketHash();
 
     renderBoard();
     deleteTicketId = null;
@@ -1476,7 +1617,11 @@
     deleteTicketId = null;
     deleteCommentId = null;
     const t = tickets.find((x) => x.id === id);
-    if (!t) return;
+if (!t) return;
+
+// ── Link compartilhável ──
+setTicketHash(id);
+addShareButtonToModal(id);
 
     const col = columns.find((c) => c.id === t.status);
 
@@ -1525,13 +1670,12 @@
     const oldActions = document.getElementById('editActions');
     if (oldActions) oldActions.remove();
 
-    if (D.btnEditTicket) {
-      D.btnEditTicket.style.display = 'flex';
-    }
-
-    if (D.btnDeleteTicket) {
-      D.btnDeleteTicket.style.display = user.role === 'admin' ? 'flex' : 'none';
-    }
+    // Sempre mostra editar e excluir
+    if (D.btnEditTicket) D.btnEditTicket.style.display = 'flex';
+    if (D.btnDeleteTicket) D.btnDeleteTicket.style.display = 'flex';
+    // Mostrar botão de compartilhar
+    const shareBtn = D.detailModal.querySelector('.btn-share-ticket');
+    if (shareBtn) shareBtn.style.display = 'flex';
 
     D.attachSection.style.display = 'block';
     D.attachGrid.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">Carregando anexos...</p>';
@@ -1577,35 +1721,32 @@
       D.attachGrid.innerHTML = '';
     }
 
-    if (user.role === 'admin') {
-      D.adminControls.classList.add('visible');
-      D.statusButtons.innerHTML = columns
-        .map((c) => {
-          const cur = t.status === c.id;
-          return `<button class="status-btn ${cur ? 'current' : ''}" data-status="${c.id}"
-            style="${cur ? `border-color:${c.color};color:${c.color};background:${c.color}20` : ''}">
-            ${esc(c.name)}
-          </button>`;
-        })
-        .join('');
+    // Sempre mostra os botoes de status
+    D.adminControls.classList.add('visible');
+    D.statusButtons.innerHTML = columns
+      .map((c) => {
+        const cur = t.status === c.id;
+        return `<button class="status-btn ${cur ? 'current' : ''}" data-status="${c.id}"
+          style="${cur ? `border-color:${c.color};color:${c.color};background:${c.color}20` : ''}">
+          ${esc(c.name)}
+        </button>`;
+      })
+      .join('');
 
-      D.statusButtons.querySelectorAll('.status-btn').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const ns = btn.dataset.status;
-          if (t.status !== ns) {
-            t.status = ns;
-            t.updatedAt = new Date().toISOString();
-            saveSingleTicket(t);
-            renderBoard();
-            openDetail(id);
-            const cn = columns.find((c) => c.id === ns)?.name || ns;
-            toast(`Status → "${cn}"`, 'success');
-          }
-        });
+    D.statusButtons.querySelectorAll('.status-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const ns = btn.dataset.status;
+        if (t.status !== ns) {
+          t.status = ns;
+          t.updatedAt = new Date().toISOString();
+          saveSingleTicket(t);
+          renderBoard();
+          openDetail(id);
+          const cn = columns.find((c) => c.id === ns)?.name || ns;
+          toast(`Status → "${cn}"`, 'success');
+        }
       });
-    } else {
-      D.adminControls.classList.remove('visible');
-    }
+    });
 
     renderComments(t);
     D.detailModal.classList.add('active');
@@ -1625,15 +1766,10 @@
     D.lightboxImg.src = '';
   }
 
-
   /* ═══════════════════════════════════════
      COMMENTS
   ═══════════════════════════════════════ */
-  function canEditComment(comment) {
-    return user.role === 'admin' || comment.author === user.name;
-  }
-
-   function renderComments(t) {
+  function renderComments(t) {
     if (!t.comments || !t.comments.length) {
       D.commentsList.innerHTML =
         '<p style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:16px 0;">Nenhum comentário ainda.</p>';
@@ -1656,9 +1792,9 @@
         });
 
         const isEditing = String(editingCommentId) === String(c.id);
-        const canEdit = canEditComment(c);
 
-        const actionsHTML = (canEdit && !isEditing)
+        // Sempre mostra botoes de editar/excluir
+        const actionsHTML = !isEditing
           ? `<div class="comment-actions">
               <button class="comment-action-btn comment-edit-btn" data-cid="${c.id}" title="Editar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -1687,13 +1823,10 @@
 
         return `
           <div class="comment ${isEditing ? 'comment-editing' : ''}">
-            <div class="comment-avatar ${c.role}">${ini}</div>
+            <div class="comment-avatar">${ini}</div>
             <div class="comment-body">
               <div class="comment-header">
                 <span class="comment-author">${esc(c.author)}</span>
-                <span class="role-tag ${c.role}" style="font-size:0.6rem;padding:1px 6px;">
-                  ${c.role === 'admin' ? 'Admin' : 'Usuário'}
-                </span>
                 <span class="comment-time">${time}</span>
                 ${actionsHTML}
               </div>
@@ -1774,7 +1907,7 @@
     });
   }
 
-   function startEditComment(commentId) {
+  function startEditComment(commentId) {
     editingCommentId = String(commentId);
     const t = tickets.find(x => x.id === tkId);
     if (t) renderComments(t);
@@ -1858,7 +1991,6 @@
       return;
     }
 
-    // Remove from local state
     t.comments.splice(commentIdx, 1);
     t.updatedAt = new Date().toISOString();
 
@@ -1869,7 +2001,6 @@
     renderBoard();
     toast('Comentário excluído.', 'info');
 
-    // Persist to Supabase
     try {
       await deleteCommentFromDB(commentId);
       await saveSingleTicket(t);
@@ -1891,7 +2022,6 @@
     const newCommentData = {
       id: 'temp_' + Date.now(),
       author: user.name,
-      role: user.role,
       text,
       createdAt: new Date().toISOString(),
       attachments: [...pendingCommentAttachments],
@@ -2047,6 +2177,92 @@
     toast(`"${name}" excluída.`, 'info');
   }
 
+
+  /* ═══════════════════════════════════════
+   SHAREABLE TICKET LINK
+═══════════════════════════════════════ */
+function getTicketUrl(id) {
+  return `${window.location.origin}${window.location.pathname}#ticket/${id}`;
+}
+
+function setTicketHash(id) {
+  history.replaceState(null, '', `#ticket/${id}`);
+}
+
+function clearTicketHash() {
+  if (window.location.hash.startsWith('#ticket/')) {
+    history.replaceState(null, '', window.location.pathname);
+  }
+}
+
+function copyTicketLink(id) {
+  const url = getTicketUrl(id);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url)
+      .then(() => toast('Link copiado para a área de transferência!', 'success'))
+      .catch(() => fallbackCopy(url));
+  } else {
+    fallbackCopy(url);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;left:-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('Link copiado!', 'success');
+  } catch {
+    prompt('Copie o link do chamado:', text);
+  }
+  ta.remove();
+}
+
+function handleTicketHash() {
+  const hash = window.location.hash;
+  if (!hash || !hash.startsWith('#ticket/')) return false;
+
+  const ticketId = hash.replace('#ticket/', '');
+  const ticket = tickets.find(t => String(t.id) === ticketId);
+
+  if (ticket) {
+    setTimeout(() => openDetail(ticketId), 250);
+    return true;
+  }
+
+  toast('Chamado #' + ticketId + ' não encontrado.', 'error');
+  clearTicketHash();
+  return false;
+}
+
+function addShareButtonToModal(ticketId) {
+  // Remove botão anterior se existir
+  const existing = D.detailModal.querySelector('.btn-share-ticket');
+  if (existing) existing.remove();
+
+  const shareBtn = document.createElement('button');
+  shareBtn.className = 'btn-share-ticket';
+  shareBtn.title = 'Copiar link do chamado';
+  shareBtn.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+      <polyline points="16 6 12 2 8 6"/>
+      <line x1="12" y1="2" x2="12" y2="15"/>
+    </svg>`;
+  shareBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    copyTicketLink(ticketId);
+  });
+
+  // Insere antes do botão de fechar
+  if (D.modalClose && D.modalClose.parentElement) {
+    D.modalClose.parentElement.insertBefore(shareBtn, D.modalClose);
+  }
+}
+
   /* ═══════════════════════════════════════
      EVENTS
   ═══════════════════════════════════════ */
@@ -2113,42 +2329,97 @@
     toast(`Exportado ${tickets.length} chamado(s)!`, 'success');
   }
 
-  function bind() {
-    setupCommentDelegation();
+      function bind() {
+    applyTheme(localStorage.getItem(SK.theme) || 'dark');
 
-    D.btnSendComment.addEventListener('click', submitComment);
-    D.commentAttachInput.addEventListener('change', () => {
-      processFiles(D.commentAttachInput.files, pendingCommentAttachments, renderCommentAttachPreviews);
-      D.commentAttachInput.value = '';
+    // ═══ Login ═══
+    D.btnLogin.addEventListener('click', handleLogin);
+    D.loginName.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+    D.loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+
+    // ═══ Forgot password ═══
+    D.forgotPasswordLink?.addEventListener('click', (e) => {
+      e.preventDefault();
+      D.loginForm.classList.add('hidden');
+      D.recoveryForm.classList.remove('hidden');
+      D.recoveryEmail.focus();
     });
-    D.commentInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        submitComment();
+
+    D.backToLogin?.addEventListener('click', (e) => {
+      e.preventDefault();
+      D.recoveryForm.classList.add('hidden');
+      D.loginForm.classList.remove('hidden');
+      D.recoveryMessage.textContent = '';
+      D.loginName.focus();
+    });
+
+    D.btnSendRecovery?.addEventListener('click', sendRecoveryEmail);
+    D.recoveryEmail?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendRecoveryEmail();
+    });
+
+    // ═══ Reset password (callback do email) ═══
+    D.btnResetPassword?.addEventListener('click', resetPassword);
+    D.resetNewPassword?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') D.resetConfirmPassword?.focus();
+    });
+    D.resetConfirmPassword?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') resetPassword();
+    });
+
+    // ═══ Change password (usuario logado) ═══
+    D.btnChangePassword?.addEventListener('click', openChangePasswordModal);
+    D.changePasswordClose?.addEventListener('click', () => {
+      D.changePasswordModal.classList.remove('active');
+    });
+    D.btnSavePassword?.addEventListener('click', saveNewPassword);
+    D.changeNewPassword?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') D.changeConfirmPassword?.focus();
+    });
+    D.changeConfirmPassword?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') saveNewPassword();
+    });
+    D.changePasswordModal?.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) D.changePasswordModal.classList.remove('active');
+    });
+
+    // ═══ User dropdown menu ═══
+    D.userMenuTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      D.userMenuWrapper.classList.toggle('open');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!D.userMenuWrapper.contains(e.target)) {
+        D.userMenuWrapper.classList.remove('open');
       }
     });
-    D.commentInput.addEventListener('input', function () {
-      this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+
+    D.userDropdown.querySelectorAll('.dropdown-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        D.userMenuWrapper.classList.remove('open');
+      });
     });
-    applyTheme(localStorage.getItem(SK.theme) || 'dark');
-    D.themeToggle.addEventListener('click', () => {
+
+    // Theme toggle via dropdown
+    D.dropdownThemeToggle.addEventListener('click', () => {
       const nextTheme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
       localStorage.setItem(SK.theme, nextTheme);
       applyTheme(nextTheme);
+      updateThemeLabel();
     });
 
-    // Login
-    D.btnLogin.addEventListener('click', handleLogin);
-    D.loginName.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleLogin();
-    });
-    D.loginPassword.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleLogin();
-    });
+    // Colaboradores via dropdown
+    D.dropdownManageUsers.addEventListener('click', openUserModal);
 
-    // Logout
-    D.btnLogout.addEventListener('click', async () => {
+    // Colunas via dropdown
+    D.dropdownManageColumns.addEventListener('click', openColNew);
+
+    // Exportar via dropdown
+    D.dropdownExport.addEventListener('click', exportCSV);
+
+    // Logout via dropdown
+    D.dropdownLogout.addEventListener('click', async () => {
       await signOut();
       user = null;
       authSession = null;
@@ -2158,88 +2429,23 @@
       D.loginPassword.value = '';
     });
 
-    // Toolbar
+    // ═══ Toolbar ═══
     D.btnNewTicket.addEventListener('click', openNew);
-    D.btnManageColumns.addEventListener('click', openColNew);
-    D.btnManageUsers.addEventListener('click', openUserModal);
-    D.btnExport.addEventListener('click', exportCSV);
     D.userModalClose.addEventListener('click', () => D.userModal.classList.remove('active'));
     D.btnSubmitUser.addEventListener('click', submitNewUser);
 
-    // Filters
-    document.querySelectorAll('.filter-btn').forEach((b) => {
-      b.addEventListener('click', handleFilter);
-    });
-    D.moduleFilter.addEventListener('change', (e) => {
-      moduleFilter = e.target.value;
-      renderBoard();
-    });
-    D.clientFilter.addEventListener('change', (e) => {
-      clientFilter = e.target.value;
-      renderBoard();
-    });
+    // ═══ Filters ═══
+    document.querySelectorAll('.filter-btn').forEach((b) => b.addEventListener('click', handleFilter));
+    D.moduleFilter.addEventListener('change', (e) => { moduleFilter = e.target.value; renderBoard(); });
+    D.clientFilter.addEventListener('change', (e) => { clientFilter = e.target.value; renderBoard(); });
 
-    // Search box
+    // ═══ Search ═══
     if (D.searchInput) {
-      D.searchInput.addEventListener('input', (e) => {
-        searchQuery = e.target.value;
-        renderBoard();
-      });
+      D.searchInput.addEventListener('input', (e) => { searchQuery = e.target.value; renderBoard(); });
       D.searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          searchQuery = '';
-          D.searchInput.value = '';
-          renderBoard();
-        }
+        if (e.key === 'Escape') { searchQuery = ''; D.searchInput.value = ''; renderBoard(); }
       });
     }
-
-    // Date filter
-if (D.dateFrom) {
-  D.dateFrom.addEventListener('change', (e) => {
-    dateFrom = e.target.value;
-    renderBoard();
-  });
-}
-if (D.dateTo) {
-  D.dateTo.addEventListener('change', (e) => {
-    dateTo = e.target.value;
-    renderBoard();
-  });
-}
-// Limpar TODOS os filtros
-if (D.clearAllFilters) {
-  D.clearAllFilters.addEventListener('click', () => {
-    // Resetar variaveis de estado
-    filter = 'all';
-    moduleFilter = 'all';
-    clientFilter = 'all';
-    searchQuery = '';
-    dateFrom = '';
-    dateTo = '';
-
-    // Resetar botoes de tipo
-    document.querySelectorAll('.filter-btn').forEach((b) => {
-      b.classList.remove('active', 'active-bug', 'active-improvement');
-    });
-    document.querySelector('.filter-btn[data-filter="all"]')?.classList.add('active');
-
-    // Resetar selects
-    if (D.moduleFilter) D.moduleFilter.value = 'all';
-    if (D.clientFilter) D.clientFilter.value = 'all';
-
-    // Resetar busca
-    if (D.searchInput) D.searchInput.value = '';
-
-    // Resetar datas
-    if (D.dateFrom) D.dateFrom.value = '';
-    if (D.dateTo) D.dateTo.value = '';
-
-    renderBoard();
-    toast('Filtros limpos!', 'success');
-  });
-}
-
     if (D.searchClear) {
       D.searchClear.addEventListener('click', () => {
         searchQuery = '';
@@ -2249,53 +2455,75 @@ if (D.clearAllFilters) {
       });
     }
 
-    // Detail modal
+    // ═══ Date filter ═══
+    if (D.dateFrom) {
+      D.dateFrom.addEventListener('change', (e) => { dateFrom = e.target.value; renderBoard(); });
+    }
+    if (D.dateTo) {
+      D.dateTo.addEventListener('change', (e) => { dateTo = e.target.value; renderBoard(); });
+    }
+
+    // ═══ Limpar TODOS os filtros ═══
+    if (D.clearAllFilters) {
+      D.clearAllFilters.addEventListener('click', () => {
+        filter = 'all';
+        moduleFilter = 'all';
+        clientFilter = 'all';
+        searchQuery = '';
+        dateFrom = '';
+        dateTo = '';
+
+        document.querySelectorAll('.filter-btn').forEach((b) => {
+          b.classList.remove('active', 'active-bug', 'active-improvement');
+        });
+        document.querySelector('.filter-btn[data-filter="all"]')?.classList.add('active');
+
+        if (D.moduleFilter) D.moduleFilter.value = 'all';
+        if (D.clientFilter) D.clientFilter.value = 'all';
+        if (D.searchInput) D.searchInput.value = '';
+        if (D.dateFrom) D.dateFrom.value = '';
+        if (D.dateTo) D.dateTo.value = '';
+
+        renderBoard();
+        toast('Filtros limpos!', 'success');
+      });
+    }
+
+    // ═══ Detail modal ═══
     D.modalClose.addEventListener('click', () => {
-      D.detailModal.classList.remove('active');
-    });
+  D.detailModal.classList.remove('active');
+  clearTicketHash();
+});
+    if (D.btnEditTicket) D.btnEditTicket.addEventListener('click', enterEditMode);
+    if (D.btnDeleteTicket) D.btnDeleteTicket.addEventListener('click', confirmDeleteTicket);
 
-    // Edit ticket button
-    if (D.btnEditTicket) {
-      D.btnEditTicket.addEventListener('click', enterEditMode);
-    }
+    // ═══ Comments ═══
+    setupCommentDelegation();
 
-    // Delete ticket button
-    if (D.btnDeleteTicket) {
-      D.btnDeleteTicket.addEventListener('click', confirmDeleteTicket);
-    }
-
-    // Comments
     D.btnSendComment.addEventListener('click', submitComment);
     D.commentAttachInput.addEventListener('change', () => {
       processFiles(D.commentAttachInput.files, pendingCommentAttachments, renderCommentAttachPreviews);
       D.commentAttachInput.value = '';
     });
     D.commentInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        submitComment();
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(); }
     });
     D.commentInput.addEventListener('input', function () {
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
 
-    // New ticket modal
-    D.newTicketClose.addEventListener('click', () => {
-      D.newTicketModal.classList.remove('active');
-    });
+    // ═══ New ticket modal ═══
+    D.newTicketClose.addEventListener('click', () => D.newTicketModal.classList.remove('active'));
     D.typeBug.addEventListener('click', () => selT('bug'));
     D.typeImprovement.addEventListener('click', () => selT('improvement'));
     D.btnSubmitTicket.addEventListener('click', submitTk);
 
-    // Column modal
-    D.columnModalClose.addEventListener('click', () => {
-      D.columnModal.classList.remove('active');
-    });
+    // ═══ Column modal ═══
+    D.columnModalClose.addEventListener('click', () => D.columnModal.classList.remove('active'));
     D.btnSubmitColumn.addEventListener('click', submitCol);
 
-    // Confirm dialog — unified handler
+    // ═══ Confirm dialog ═══
     D.confirmCancel.addEventListener('click', () => {
       D.confirmDialog.classList.remove('active');
       delColId = null;
@@ -2303,41 +2531,44 @@ if (D.clearAllFilters) {
       deleteCommentId = null;
     });
     D.confirmOk.addEventListener('click', () => {
-      if (deleteCommentId) {
-        handleDeleteComment();
-      } else if (deleteTicketId) {
-        handleDeleteTicket();
-      } else if (delColId) {
-        handleDel();
-      }
+      if (deleteCommentId) handleDeleteComment();
+      else if (deleteTicketId) handleDeleteTicket();
+      else if (delColId) handleDel();
     });
 
-    // Lightbox
-    D.lightbox.addEventListener('click', (e) => {
-      if (e.target === D.lightbox) closeLightbox();
-    });
+    // ═══ Lightbox ═══
+    D.lightbox.addEventListener('click', (e) => { if (e.target === D.lightbox) closeLightbox(); });
     D.lightboxClose.addEventListener('click', closeLightbox);
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeLightbox();
-    });
 
-    // Close modals on overlay click
+    // ═══ Close modals on overlay ═══
     [D.detailModal, D.newTicketModal, D.columnModal].forEach((m) => {
-      m.addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) m.classList.remove('active');
-      });
-    });
+  m.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      m.classList.remove('active');
+      if (m === D.detailModal) clearTicketHash();
+    }
+  });
+});
 
-    // Attachment zone
+    // ═══ Attachment zone ═══
     setupAttachZone();
   }
 
   /* ═══════════════════════════════════════
      BOOT
   ═══════════════════════════════════════ */
-  async function boot() {
+    async function boot() {
     bind();
 
+    // Checa se veio do link de redefinicao de senha
+    const isRecovery = await handleRecoveryCallback();
+
+    var ls = document.getElementById('loadingScreen');
+    if (ls) ls.remove();
+
+    if (isRecovery) return; // Tela de redefinicao ja esta visivel
+
+    // Fluxo normal
     let hasSession = false;
     try {
       hasSession = await restoreSession();
@@ -2349,14 +2580,12 @@ if (D.clearAllFilters) {
       } catch (e) {}
     }
 
-    var ls = document.getElementById('loadingScreen');
-    if (ls) ls.remove();
-
     if (hasSession) {
       D.loginScreen.classList.add('hidden');
       D.app.classList.add('active');
       setupUI();
       renderBoard();
+      handleTicketHash();
     } else {
       D.loginScreen.classList.remove('hidden');
     }

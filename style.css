@@ -261,7 +261,8 @@ body::before {
 .app {
   display: none;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;          /* era min-height */
+  overflow: hidden;        /* impede scroll na página */
   position: relative;
   z-index: 1;
 }
@@ -403,15 +404,20 @@ body::before {
 }
 
 .user-avatar {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent) 0%, #d4a017 100%);
+  color: #0d0d0d;
+  font-size: 0.7rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 0.75rem;
-  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+  user-select: none;
+  text-transform: uppercase;
 }
 
 .user-avatar.admin {
@@ -460,8 +466,200 @@ body::before {
 }
 
 /* ═══════════════════════════════════════
-   TOOLBAR
+   USER MENU DROPDOWN
 ═══════════════════════════════════════ */
+
+.user-menu-wrapper {
+  position: relative;
+}
+
+.user-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.user-menu-trigger:hover {
+  border-color: var(--accent);
+  background: rgba(232, 197, 71, 0.06);
+}
+.dropdown-header .user-avatar {
+  width: 38px;
+  height: 38px;
+  font-size: 0.8rem;
+}
+
+.user-menu-trigger .user-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 0.65rem;
+}
+
+.user-menu-chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+}
+
+.user-menu-wrapper.open .user-menu-chevron {
+  transform: rotate(180deg);
+}
+
+/* Dropdown panel */
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(0,0,0,0.15);
+  padding: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) scale(0.97);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1000;
+}
+
+.user-menu-wrapper.open .user-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+/* Dropdown header */
+.dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 8px;
+}
+
+.dropdown-header .user-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.dropdown-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dropdown-user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-user-email {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Divider */
+.dropdown-divider {
+  height: 1px;
+  background: var(--border, rgba(255,255,255,0.08));
+  margin: 4px 8px;
+}
+
+/* Items */
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.dropdown-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.dropdown-item:hover {
+  background: rgba(232, 197, 71, 0.1);
+}
+
+.dropdown-item:hover svg {
+  color: var(--accent);
+}
+
+/* Danger item (Sair) */
+.dropdown-item-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.dropdown-item-danger:hover svg {
+  color: #ef4444;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .user-menu-trigger {
+  border-color: rgba(0,0,0,0.12);
+  background: #fff;
+}
+
+[data-theme="light"] .user-dropdown {
+  background: #fff;
+  border-color: rgba(0,0,0,0.1);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .dropdown-item:hover {
+  background: rgba(232, 197, 71, 0.12);
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════ */
+@media (max-width: 768px) {
+  .user-menu-trigger span#userName {
+    display: none;
+  }
+
+  .user-dropdown {
+    min-width: 220px;
+    right: -8px;
+  }
+}
 /* ═══════════════════════════════════════
    TOOLBAR
 ═══════════════════════════════════════ */
@@ -760,19 +958,20 @@ body::before {
   gap: 20px;
   padding: 0 32px 32px;
   flex: 1;
-  overflow-x: auto;
-  min-height: 0;
+  min-height: 0;           /* permite encolher dentro do flex */
+  overflow-x: auto;        /* scroll horizontal entre colunas */
+  overflow-y: hidden;      /* sem scroll vertical no board */
 }
-
 .column {
   flex: 0 0 300px;
   min-width: 300px;
+  max-height: 100%;        /* respeita a altura do board */
   display: flex;
   flex-direction: column;
   background: rgba(26, 34, 53, 0.5);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow: hidden;        /* mantém bordas arredondadas */
   animation: fadeUp 0.5s ease forwards;
   opacity: 0;
 }
@@ -883,9 +1082,9 @@ body::before {
 
 .column-body {
   flex: 1;
+  min-height: 0;           /* permite encolher para scroll funcionar */
   padding: 12px;
-  overflow-y: auto;
-  min-height: 120px;
+  overflow-y: auto;        /* scroll DENTRO da coluna */
   transition: background var(--transition);
 }
 
@@ -902,6 +1101,7 @@ body::before {
 .add-column-card {
   flex: 0 0 300px;
   min-width: 300px;
+  max-height: 100%;        /* ← adicionar */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1297,16 +1497,20 @@ body::before {
 }
 
 .comment-avatar {
-  width: 32px;
+   width: 32px;
   height: 32px;
   border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent) 0%, #d4a017 100%);
+  color: #0d0d0d;
+  font-size: 0.65rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 0.7rem;
-  color: #fff;
   flex-shrink: 0;
+  letter-spacing: 0.02em;
+  user-select: none;
+  text-transform: uppercase;
 }
 
 .comment-avatar.admin {
@@ -2582,9 +2786,9 @@ body::before {
 
 .filter-date-clear:hover {
   transform: translateY(-2px);
-  color: #fff;
+  color: #000;
   box-shadow: 0 6px 24px var(--accent-glow);
-  background: #08274C;
+  background: #d0d0d0;
 }
 
 /* Light theme */
@@ -2606,4 +2810,119 @@ body::before {
   .filter-date-input {
     width: 110px;
   }
+}
+
+/* ═══════════════════════════════════════
+   PASSWORD RECOVERY & CHANGE
+═══════════════════════════════════════ */
+
+.forgot-password-link {
+  display: block;
+  text-align: center;
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.forgot-password-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.recovery-instructions {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.login-success {
+  color: #22c55e;
+  font-size: 0.82rem;
+  text-align: center;
+  margin-top: 12px;
+}
+
+/* Botao de alterar senha no header */
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-icon:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(232, 197, 71, 0.08);
+}
+
+[data-theme="light"] .btn-icon {
+  border-color: rgba(0,0,0,0.12);
+}
+
+[data-theme="light"] .btn-icon:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(232, 197, 71, 0.1);
+}
+
+/* ═══════════════════════════════════════
+   SHARE TICKET BUTTON
+═══════════════════════════════════════ */
+
+.btn-share-ticket {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: var(--surface-hover, rgba(255,255,255,0.06));
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.btn-share-ticket svg {
+  width: 15px;
+  height: 15px;
+}
+
+.btn-share-ticket:hover {
+  color: #06b6d4;
+  background: rgba(6, 182, 212, 0.12);
+  transform: scale(1.05);
+}
+
+.btn-share-ticket:active {
+  transform: scale(0.95);
+}
+
+[data-theme="light"] .btn-share-ticket {
+  background: rgba(0,0,0,0.04);
+}
+
+[data-theme="light"] .btn-share-ticket:hover {
+  background: rgba(6, 182, 212, 0.12);
 }
