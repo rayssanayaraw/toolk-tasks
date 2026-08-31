@@ -286,24 +286,28 @@
   }
 
   async function signIn(email, password) {
-    const response = await fetch(`${SB_AUTH_API}/token?grant_type=password`, {
-      method: 'POST',
-      headers: {
-        apikey: SB_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+  const response = await fetch(`${SB_AUTH_API}/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      apikey: SB_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error_description || 'E-mail ou senha inválidos.');
-    }
-
-    const session = await response.json();
-    localStorage.setItem(SK.authSession, JSON.stringify(session));
-    return session;
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error_description || 'E-mail ou senha inválidos.');
   }
+
+  const session = await response.json();
+  
+  // Atualiza a variável em memória E o localStorage
+  authSession = session; 
+  localStorage.setItem(SK.authSession, JSON.stringify(session));
+  
+  return session;
+}
 
   async function signOut() {
     if (authSession?.access_token) await fetch(`${SB_AUTH_API}/logout`, {
@@ -2333,7 +2337,20 @@ function addShareButtonToModal(ticketId) {
     applyTheme(localStorage.getItem(SK.theme) || 'dark');
 
     // ═══ Login ═══
-    D.btnLogin.addEventListener('click', handleLogin);
+    D.btnLogin.addEventListener('click', async () => {
+  const email = D.loginName.value.trim();
+  const password = D.loginPassword.value;
+
+  try {
+    await signIn(email, password);
+    
+    // Recarrega a página automaticamente após salvar a sessão no localStorage
+    window.location.reload();
+
+  } catch (err) {
+    D.loginError.textContent = err.message;
+  }
+});
     D.loginName.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
     D.loginPassword.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
 
