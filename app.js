@@ -97,6 +97,7 @@
   let deleteTicketId = null;
   let deleteCommentId = null;
   let editingCommentId = null;
+  let notificationPoller = null;
 
   /* ═══════════════════════════════════════
      DOM REFERENCES
@@ -116,6 +117,12 @@
     themeToggle: $('themeToggle'),
     btnLogout: $('btnLogout'),
     headerStats: $('headerStats'),
+    notificationWrapper: $('notificationWrapper'),
+    notificationTrigger: $('notificationTrigger'),
+    notificationPanel: $('notificationPanel'),
+    notificationCount: $('notificationCount'),
+    notificationSummary: $('notificationSummary'),
+    notificationList: $('notificationList'),
     btnNewTicket: $('btnNewTicket'),
     btnManageColumns: $('btnManageColumns'),
     btnManageUsers: $('btnManageUsers'),
@@ -220,6 +227,73 @@
     const d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
+  }
+
+  function linkify(s) {
+    return esc(s).replace(/(https?:\/\/[^\s<]+)/gi, (url) => {
+      const trailing = url.match(/[.,!?;:]+$/)?.[0] || '';
+      const cleanUrl = trailing ? url.slice(0, -trailing.length) : url;
+      return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>${trailing}`;
+    });
+  }
+
+  function notificationSeenKey() {
+    return `taskflow_notifications_seen_${user?.email || 'guest'}`;
+  }
+
+  function notificationReadKey() {
+    return `taskflow_notifications_read_${user?.email || 'guest'}`;
+  }
+
+  function getReadNotificationIds() {
+    try {
+      const savedIds = JSON.parse(localStorage.getItem(notificationReadKey()) || '[]');
+      if (Array.isArray(savedIds) && savedIds.length) return new Set(savedIds.map(String));
+
+      const legacySeenAt = Number(localStorage.getItem(notificationSeenKey()) || 0);
+      return new Set(
+        tickets
+          .filter((ticket) => new Date(ticket.createdAt).getTime() <= legacySeenAt)
+          .map((ticket) => String(ticket.id))
+      );
+    } catch (error) {
+      return new Set();
+    }
+  }
+
+  function renderNotifications() {
+    if (!D.notificationList) return;
+
+    const sortedTickets = [...tickets]
+      .filter((ticket) => ticket.createdAt)
+      .sort((firstTicket, secondTicket) => new Date(secondTicket.createdAt) - new Date(firstTicket.createdAt));
+    const readIds = getReadNotificationIds();
+    const unreadTickets = sortedTickets.filter((ticket) => !readIds.has(String(ticket.id)));
+
+    D.notificationCount.textContent = unreadTickets.length > 99 ? '99+' : String(unreadTickets.length);
+    D.notificationCount.hidden = unreadTickets.length === 0;
+    D.notificationSummary.textContent = unreadTickets.length
+      ? `${unreadTickets.length} nova${unreadTickets.length === 1 ? '' : 's'}`
+      : 'Nenhuma nova';
+
+    D.notificationList.innerHTML = sortedTickets.length
+      ? sortedTickets.slice(0, 30).map((ticket) => `
+          <button class="notification-item ${readIds.has(String(ticket.id)) ? '' : 'unread'}" type="button" data-ticket-id="${esc(ticket.id)}">
+            <span class="notification-dot"></span>
+            <span class="notification-content">
+              <strong>Novo chamado #${esc(ticket.id)}</strong>
+              <span>${esc(ticket.title || 'Sem título')}</span>
+              <small>${new Date(ticket.createdAt).toLocaleString('pt-BR')}</small>
+            </span>
+          </button>`).join('')
+      : '<p class="notification-empty">Nenhum chamado aberto ainda.</p>';
+  }
+
+  function markNotificationAsRead(ticketId) {
+    const readIds = getReadNotificationIds();
+    readIds.add(String(ticketId));
+    localStorage.setItem(notificationReadKey(), JSON.stringify([...readIds]));
+    renderNotifications();
   }
 
   function cap(s) {
@@ -771,6 +845,12 @@
     });
   }
 
+  async function deleteColumnFromDB(columnId) {
+    await sbRequest(`columns?id=eq.${encodeURIComponent(columnId)}`, {
+      method: 'DELETE',
+    });
+  }
+
   /* ═══════════════════════════════════════
      ATTACHMENT HANDLING
   ═══════════════════════════════════════ */
@@ -944,6 +1024,16 @@
     }
 
     updateThemeLabel();
+    renderNotifications();
+
+    if (!notificationPoller) {
+      notificationPoller = setInterval(async () => {
+        if (!user) return;
+        await load();
+        renderBoard();
+        renderNotifications();
+      }, 30000);
+    }
   }
 
   function updateThemeLabel() {
@@ -1061,6 +1151,10 @@
         const fields = `${ticket.title || ''} ${ticket.description || ''} ${ticket.author || ''}`.toLowerCase();
         const words = q.split(/\s+/).filter(Boolean);
         return words.every((w) => fields.includes(w));
+      }).sort((firstTicket, secondTicket) => {
+        const firstDate = new Date(firstTicket.createdAt).getTime();
+        const secondDate = new Date(secondTicket.createdAt).getTime();
+        return firstDate - secondDate;
       });
 
       const el = document.createElement('div');
@@ -1220,21 +1314,27 @@
         : '';
 
     return `
-      <div class="card" data-id="${t.id}" style="animation-delay:${i * 0.05}s">
+      <div class="card${t.priority === 'alta' ? ' priority-alta' : ''}" data-id="${t.id}" style="animation-delay:${i * 0.05}s">
         <div class="card-top">
           <span class="card-id">#${t.id}</span>
-          <span class="card-type ${t.type}">${t.type === 'bug' ? 'Bug' : 'Melhoria'}</span>
+          <div class="card-badges">
+            ${t.priority === 'alta' ? '<span class="card-urgent">Urgente</span>' : ''}
+            <span class="card-type ${t.type}">${t.type === 'bug' ? 'Bug' : 'Melhoria'}</span>
+          </div>
         </div>
         <div class="card-title">${esc(t.title)}</div>
         <div class="card-module">${esc(t.module || 'Módulo não informado')}</div>
         <div class="card-module">${esc(t.client || 'Cliente não informado')}</div>
-        <div class="card-desc">${esc(t.description)}</div>
+        <div class="card-desc">${linkify(t.description)}</div>
         <div class="card-footer">
-          <div class="card-meta">
+          <div class="card-priority-row">
             <div class="card-meta-item">
               <div class="card-priority ${t.priority}"></div>
               ${cap(t.priority)}
             </div>
+          </div>
+          <div class="card-footer-main">
+          <div class="card-meta">
             <div class="card-meta-item">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -1242,7 +1342,8 @@
               ${cc}
             </div>
             ${attachIcon}
-            <div class="card-meta-item">
+          </div>
+          <div class="card-meta-item card-date">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <rect x="3" y="4" width="18" height="18" rx="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/>
@@ -1250,9 +1351,9 @@
                 <line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
               ${d}
-            </div>
           </div>
-          <span class="card-author">${esc(t.author)}</span>
+          </div>
+          <span class="card-author">Criado por ${esc(t.author)}</span>
         </div>
       </div>`;
   }
@@ -1402,6 +1503,7 @@
     };
 
     tickets.unshift(tk);
+    renderNotifications();
     saveSingleTicket(tk)
       .then(() => saveAttachments(tk))
       .catch((error) => {
@@ -1631,7 +1733,7 @@ addShareButtonToModal(id);
 
     D.modalId.textContent = `#${t.id}`;
     D.modalTitle.textContent = t.title;
-    D.modalDescription.textContent = t.description;
+    D.modalDescription.innerHTML = linkify(t.description);
 
     D.modalDetails.innerHTML = `
       <div class="detail-item">
@@ -1823,7 +1925,7 @@ addShareButtonToModal(id);
                 <button class="btn-comment-edit-save" data-cid="${c.id}">Salvar</button>
               </div>
             </div>`
-          : `<p class="comment-text">${esc(c.text)}</p>`;
+          : `<p class="comment-text">${linkify(c.text)}</p>`;
 
         return `
           <div class="comment ${isEditing ? 'comment-editing' : ''}">
@@ -2138,6 +2240,11 @@ addShareButtonToModal(id);
     const c = columns.find((x) => x.id === id);
     if (!c) return;
 
+    if (columns.length <= 1) {
+      toast('Mantenha pelo menos uma coluna no quadro.', 'error');
+      return;
+    }
+
     const n = tickets.filter((t) => t.status === id).length;
     delColId = id;
     deleteTicketId = null;
@@ -2155,12 +2262,14 @@ addShareButtonToModal(id);
     D.confirmDialog.classList.add('active');
   }
 
-  function handleDel() {
+  async function handleDel() {
     if (!delColId) return;
 
     const id = delColId;
     const c = columns.find((x) => x.id === id);
     const name = c?.name || id;
+    const previousColumns = [...columns];
+    const previousStatuses = new Map(tickets.map((ticket) => [ticket.id, ticket.status]));
     const rem = columns.filter((x) => x.id !== id);
     const fb = rem[0]?.id || 'backlog';
 
@@ -2172,13 +2281,24 @@ addShareButtonToModal(id);
     });
 
     columns = columns.filter((x) => x.id !== id);
-    saveC();
-    saveT();
-    renderBoard();
-
-    D.confirmDialog.classList.remove('active');
-    delColId = null;
-    toast(`"${name}" excluída.`, 'info');
+    try {
+      await deleteColumnFromDB(id);
+      await saveC();
+      await saveT();
+      renderBoard();
+      toast(`"${name}" excluída.`, 'info');
+    } catch (error) {
+      console.error('Erro ao excluir coluna:', error);
+      columns = previousColumns;
+      tickets.forEach((ticket) => {
+        ticket.status = previousStatuses.get(ticket.id) || ticket.status;
+      });
+      renderBoard();
+      toast('Não foi possível excluir a coluna no Supabase. Verifique as permissões da tabela columns.', 'error');
+    } finally {
+      D.confirmDialog.classList.remove('active');
+      delColId = null;
+    }
   }
 
 
@@ -2406,9 +2526,34 @@ function addShareButtonToModal(ticketId) {
       D.userMenuWrapper.classList.toggle('open');
     });
 
+    D.notificationTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = D.notificationWrapper.classList.toggle('open');
+      D.notificationTrigger.setAttribute('aria-expanded', String(isOpen));
+      D.notificationPanel.setAttribute('aria-hidden', String(!isOpen));
+    });
+
+    D.notificationList.addEventListener('click', (e) => {
+      const item = e.target.closest('.notification-item');
+      if (!item) return;
+      const ticket = tickets.find((currentTicket) => String(currentTicket.id) === item.dataset.ticketId);
+      D.notificationWrapper.classList.remove('open');
+      D.notificationTrigger.setAttribute('aria-expanded', 'false');
+      D.notificationPanel.setAttribute('aria-hidden', 'true');
+      if (ticket) {
+        markNotificationAsRead(ticket.id);
+        openDetail(ticket.id);
+      }
+    });
+
     document.addEventListener('click', (e) => {
       if (!D.userMenuWrapper.contains(e.target)) {
         D.userMenuWrapper.classList.remove('open');
+      }
+      if (!D.notificationWrapper.contains(e.target)) {
+        D.notificationWrapper.classList.remove('open');
+        D.notificationTrigger.setAttribute('aria-expanded', 'false');
+        D.notificationPanel.setAttribute('aria-hidden', 'true');
       }
     });
 
@@ -2560,7 +2705,7 @@ function addShareButtonToModal(ticketId) {
     // ═══ Close modals on overlay ═══
     [D.detailModal, D.newTicketModal, D.columnModal].forEach((m) => {
   m.addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) {
+    if (e.target === e.currentTarget && m !== D.newTicketModal) {
       m.classList.remove('active');
       if (m === D.detailModal) clearTicketHash();
     }
