@@ -135,6 +135,8 @@
     dateTo: $('dateTo'),
     clearAllFilters: $('clearAllFilters'),
     board: $('board'),
+    reportView: $('reportView'),
+    btnReportView: $('btnReportView'),
     detailModal: $('detailModal'),
     modalId: $('modalId'),
     modalTitle: $('modalTitle'),
@@ -1188,6 +1190,58 @@
     D.board.appendChild(add);
 
     renderStats();
+    renderReport();
+  }
+
+  function getReportTickets() {
+    const query = (searchQuery || '').trim().toLowerCase();
+    return tickets.filter((ticket) => {
+      if (filter !== 'all' && ticket.type !== filter) return false;
+      if (moduleFilter !== 'all' && ticket.module !== moduleFilter) return false;
+      if (clientFilter !== 'all' && ticket.client !== clientFilter) return false;
+
+      const ticketDate = new Date(ticket.createdAt);
+      ticketDate.setHours(0, 0, 0, 0);
+      if (dateFrom && ticketDate < new Date(dateFrom + 'T00:00:00')) return false;
+      if (dateTo && ticketDate > new Date(dateTo + 'T23:59:59')) return false;
+
+      if (!query) return true;
+      const fields = `${ticket.title || ''} ${ticket.description || ''} ${ticket.author || ''}`.toLowerCase();
+      return query.split(/\s+/).filter(Boolean).every((word) => fields.includes(word));
+    });
+  }
+
+  function renderReport() {
+    if (!D.reportView) return;
+    const visibleTickets = getReportTickets();
+    const total = visibleTickets.length;
+    const doneColumn = columns.find((column) => /conclu|done|resol/i.test(column.name)) || columns[columns.length - 1];
+    const done = doneColumn ? visibleTickets.filter((ticket) => ticket.status === doneColumn.id).length : 0;
+    const urgent = visibleTickets.filter((ticket) => ticket.priority === 'alta').length;
+    const bugs = visibleTickets.filter((ticket) => ticket.type === 'bug').length;
+    const percent = (value) => total ? Math.round((value / total) * 100) : 0;
+    const statusRows = columns.map((column) => {
+      const count = visibleTickets.filter((ticket) => ticket.status === column.id).length;
+      return `<div class="report-bar-row"><span>${esc(column.name)}</span><div class="report-bar"><i style="width:${percent(count)}%;background:${column.color}"></i></div><strong>${count}</strong></div>`;
+    }).join('');
+    const moduleCounts = [...new Set(visibleTickets.map((ticket) => ticket.module || 'Não informado'))]
+      .map((module) => ({ module, count: visibleTickets.filter((ticket) => (ticket.module || 'Não informado') === module).length }))
+      .sort((first, second) => second.count - first.count)
+      .slice(0, 5);
+    const moduleRows = moduleCounts.length
+      ? moduleCounts.map(({ module, count }) => `<div class="report-ranking-row"><span>${esc(module)}</span><strong>${count}</strong><em>${percent(count)}%</em></div>`).join('')
+      : '<p class="report-empty">Nenhum chamado no período.</p>';
+
+    D.reportView.innerHTML = `<div class="report-heading"><div><span class="eyebrow">VISÃO EXECUTIVA</span><h2>Indicadores do relatório</h2><p>${total} chamado${total === 1 ? '' : 's'} no recorte atual</p></div><div class="report-heading-actions"><span class="report-updated">Atualizado agora</span><button class="btn-report-back" id="btnBoardView" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/><path d="M9 12h12"/></svg>Voltar ao quadro</button></div></div>
+      <div class="report-kpis"><article class="report-kpi"><span>Total de chamados</span><strong>${total}</strong><small>base filtrada</small></article><article class="report-kpi report-kpi-accent"><span>Taxa de conclusão</span><strong>${percent(done)}%</strong><small>${done} concluído${done === 1 ? '' : 's'}</small></article><article class="report-kpi"><span>Alta prioridade</span><strong>${urgent}</strong><small>${percent(urgent)}% da fila</small></article><article class="report-kpi"><span>Bugs registrados</span><strong>${bugs}</strong><small>${percent(bugs)}% do total</small></article></div>
+      <div class="report-grid"><article class="report-panel"><div class="report-panel-title"><div><span class="eyebrow">FLUXO</span><h3>Chamados por status</h3></div><span class="report-total">${total} total</span></div><div class="report-bars">${statusRows || '<p class="report-empty">Sem status disponível.</p>'}</div></article><article class="report-panel"><div class="report-panel-title"><div><span class="eyebrow">CONCENTRAÇÃO</span><h3>Módulos com mais chamados</h3></div></div><div class="report-ranking">${moduleRows}</div></article></div>`;
+    D.reportView.querySelector('#btnBoardView').addEventListener('click', () => {
+      D.app.classList.remove('report-mode');
+      D.reportView.hidden = true;
+      D.board.hidden = false;
+      D.btnReportView.classList.remove('active');
+      D.btnReportView.setAttribute('aria-pressed', 'false');
+    });
   }
 
   function colHeader(c, n) {
@@ -2593,6 +2647,9 @@ function addShareButtonToModal(ticketId) {
 
     // ═══ Toolbar ═══
     D.btnNewTicket.addEventListener('click', openNew);
+    D.btnReportView.addEventListener('click', () => {
+      window.location.href = 'relatorios.html';
+    });
     D.userModalClose.addEventListener('click', () => D.userModal.classList.remove('active'));
     D.btnSubmitUser.addEventListener('click', submitNewUser);
 

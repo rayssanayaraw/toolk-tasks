@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toolk Tasks - Relatorios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="relatorios.css">
+</head>
+<body class="report-page">
+  <header class="report-header">
+    <a class="report-brand" href="index.html" aria-label="Voltar para o quadro">
+      <img src="midia/toolk_reduzida_nova.png" alt="Toolk">
+      <span>Tasks <b>/ Relatorios</b></span>
+    </a>
+    <div class="report-header-actions">
+      <span id="reportUser"></span>
+      <button class="report-theme-btn" id="themeToggle" type="button">Alternar tema</button>
+      <a class="report-back-btn" href="index.html">Voltar ao quadro</a>
+    </div>
+  </header>
+
+  <main class="report-main">
+    <div class="report-page-heading">
+      <div>
+        <span class="eyebrow">VISÃO EXECUTIVA</span>
+        <h1>Indicadores dos chamados</h1>
+        <p id="reportSubtitle">Carregando dados...</p>
+      </div>
+      <span class="report-updated" id="reportUpdated"></span>
+    </div>
+
+    <section class="report-filters" aria-label="Filtros do relatório">
+      <strong>Filtrar relatório</strong>
+      <select id="typeFilter" aria-label="Filtrar por tipo"><option value="all">Todos os tipos</option><option value="bug">Bugs</option><option value="improvement">Melhorias</option></select>
+      <select id="moduleFilter" aria-label="Filtrar por módulo"><option value="all">Todos os módulos</option></select>
+      <select id="clientFilter" aria-label="Filtrar por empresa"><option value="all">Todas as empresas</option></select>
+      <input id="dateFrom" type="date" aria-label="Data inicial">
+      <input id="dateTo" type="date" aria-label="Data final">
+      <button id="clearFilters" type="button">Limpar</button>
+    </section>
+
+    <section class="report-view" id="reportView" aria-label="Indicadores do relatório"></section>
+  </main>
+  <p class="report-error" id="reportError" hidden></p>
+  <script src="relatorios.js"></script>
+</body>
+</html>
