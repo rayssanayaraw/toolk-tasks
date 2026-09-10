@@ -96,10 +96,17 @@
       <img src="midia/toolk_reduzida_nova.png" alt="Toolk" class="header-logo-img">
       <span>Tasks</span>
     </div>
-    <div class="header-divider"></div>
-    <div class="header-stats" id="headerStats"></div>
+    <!-- <div class="header-stats" id="headerStats"></div> -->
   </div>
   <div class="header-right">
+
+    <button class="btn-report-view" id="btnReportView" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/>
+          </svg>
+          Relatório
+        </button>
+
     <div class="notification-wrapper" id="notificationWrapper">
       <button class="notification-trigger" id="notificationTrigger" type="button" aria-label="Notificações" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -108,6 +115,8 @@
         </svg>
         <span class="notification-count" id="notificationCount" hidden>0</span>
       </button>
+
+
       <div class="notification-panel" id="notificationPanel" aria-hidden="true">
         <div class="notification-panel-header">
           <strong>Notificações</strong>
@@ -194,17 +203,9 @@
     <!-- TOOLBAR -->
     <div class="toolbar">
       <div class="toolbar-row">
-        <div class="toolbar-group filter-type-group">
-          <button class="filter-btn active" data-filter="all">Todos</button>
-          <button class="filter-btn" data-filter="bug">🐛 Bugs</button>
-          <button class="filter-btn" data-filter="improvement">✨ Melhorias</button>
-        </div>
-
-        <div class="toolbar-separator"></div>
-
         <div class="toolbar-group filter-scope-group">
           <select class="filter-select" id="moduleFilter" aria-label="Filtrar por módulo">
-            <option value="all">Todos os módulos</option>
+            <option value="all">Módulos</option>
             <option>App - MOBILE</option>
             <option>Configurações</option>
             <option>Administração</option>
@@ -224,7 +225,7 @@
             <option>Outro</option>
           </select>
           <select class="filter-select" id="clientFilter" aria-label="Filtrar por empresa">
-            <option value="all">Todas as empresas</option>
+            <option value="all">Cliente</option>
             <option>ACEVILLE</option>
             <option>ACONCHEGO</option>
             <option>ANALI SUPERMERCADO</option>
@@ -282,12 +283,6 @@
 
         <div class="toolbar-spacer"></div>
 
-        <button class="btn-report-view" id="btnReportView" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/>
-          </svg>
-          Relatório
-        </button>
 
         <button class="btn-new-ticket" id="btnNewTicket">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -299,6 +294,14 @@
       </div>
 
       <div class="toolbar-row toolbar-search-row">
+        <div class="toolbar-group filter-type-group">
+          <button class="filter-btn active" data-filter="all">Todos</button>
+          <button class="filter-btn" data-filter="bug">🐛 Bugs</button>
+          <button class="filter-btn" data-filter="improvement">✨ Melhorias</button>
+        </div>
+
+        <div class="toolbar-separator"></div>
+
         <div class="search-box">
           <input type="search" id="searchInput" placeholder="Buscar chamados..." aria-label="Buscar chamados">
         </div>
