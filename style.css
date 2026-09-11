@@ -3049,16 +3049,17 @@ body::before {
 
 .filter-date-input {
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   background: var(--surface);
   border: 1px solid var(--border, rgba(255,255,255,0.1));
-  border-radius: 6px;
-  padding: 6px 8px;
+  border-radius: var(--radius);
+  padding: 8px 12px;
   color: var(--text-primary);
   outline: none;
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  width: 130px;
+  width: clamp(145px, 15vw, 220px);
+  min-height: 38px;
 }
 
 .filter-date-input:focus {
