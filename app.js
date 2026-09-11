@@ -719,6 +719,27 @@
     });
   }
 
+  async function updateTicketInDB(ticket) {
+    const updatedTickets = await sbRequest(`tickets?id=eq.${encodeURIComponent(ticket.id)}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        type: ticket.type,
+        title: ticket.title,
+        description: ticket.description,
+        module: ticket.module || null,
+        client: ticket.client || null,
+        priority: ticket.priority,
+        status: ticket.status,
+        updated_at: ticket.updatedAt,
+      }),
+    });
+
+    if (!Array.isArray(updatedTickets) || updatedTickets.length === 0) {
+      throw new Error('O ticket não foi encontrado ou você não tem permissão para editá-lo.');
+    }
+  }
+
   async function saveC() {
     await sbRequest('columns?on_conflict=id', {
       method: 'POST',
@@ -1719,7 +1740,7 @@
     saveBtn.disabled = true;
     saveBtn.textContent = 'Salvando...';
 
-    saveSingleTicket(t)
+    updateTicketInDB(t)
       .then(() => {
         toast('Chamado atualizado com sucesso!', 'success');
         renderBoard();
@@ -1727,7 +1748,7 @@
       })
       .catch(err => {
         console.error(err);
-        toast('Erro ao salvar alterações.', 'error');
+        toast(`Erro ao salvar alterações: ${err.message}`, 'error');
       })
       .finally(() => {
         saveBtn.disabled = false;
