@@ -97,7 +97,6 @@
   let deleteTicketId = null;
   let deleteCommentId = null;
   let editingCommentId = null;
-  let notificationPoller = null;
 
   /* ═══════════════════════════════════════
      DOM REFERENCES
@@ -836,15 +835,31 @@
   }
 
   async function deleteTicketFromDB(ticketId) {
-    await sbRequest(`attachments?ticket_id=eq.${ticketId}`, {
-      method: 'DELETE',
-    });
-    await sbRequest(`comments?ticket_id=eq.${ticketId}`, {
-      method: 'DELETE',
-    });
+    const cleanupErrors = [];
+
+    try {
+      await sbRequest(`attachments?ticket_id=eq.${ticketId}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.warn('Não foi possível limpar os anexos do chamado:', error);
+      cleanupErrors.push(error);
+    }
+
+    try {
+      await sbRequest(`comments?ticket_id=eq.${ticketId}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.warn('Não foi possível limpar os comentários do chamado:', error);
+      cleanupErrors.push(error);
+    }
+
     await sbRequest(`tickets?id=eq.${ticketId}`, {
       method: 'DELETE',
     });
+
+    return cleanupErrors;
   }
 
   async function deleteColumnFromDB(columnId) {
@@ -1027,15 +1042,6 @@
 
     updateThemeLabel();
     renderNotifications();
-
-    if (!notificationPoller) {
-      notificationPoller = setInterval(async () => {
-        if (!user) return;
-        await load();
-        renderBoard();
-        renderNotifications();
-      }, 30000);
-    }
   }
 
   function updateThemeLabel() {
@@ -1156,7 +1162,9 @@
       }).sort((firstTicket, secondTicket) => {
         const firstDate = new Date(firstTicket.createdAt).getTime();
         const secondDate = new Date(secondTicket.createdAt).getTime();
-        return firstDate - secondDate;
+        const normalizedColumnName = col.name.trim().toLocaleLowerCase('pt-BR');
+        const isCompletedColumn = col.id === 'done' || normalizedColumnName === 'concluído';
+        return isCompletedColumn ? secondDate - firstDate : firstDate - secondDate;
       });
 
       const el = document.createElement('div');
@@ -1413,6 +1421,8 @@
   }
 
   function renderStats() {
+    if (!D.headerStats) return;
+
     D.headerStats.innerHTML = columns
       .map((c) => {
         const n = tickets.filter((t) => t.status === c.id).length;
@@ -1539,6 +1549,9 @@
 
     D.btnSubmitTicket.disabled = true;
     D.btnSubmitTicket.textContent = 'Salvando...';
+    D.newTicketModal.classList.remove('active');
+    const ticketAttachments = [...pendingAttachments];
+    pendingAttachments = [];
 
     const tk = {
       id: String(tkCtr++).padStart(3, '0'),
@@ -1553,7 +1566,7 @@
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       comments: [],
-      attachments: [...pendingAttachments],
+      attachments: ticketAttachments,
     };
 
     tickets.unshift(tk);
@@ -1569,8 +1582,6 @@
         D.btnSubmitTicket.textContent = 'Criar Chamado';
       });
     renderBoard();
-    D.newTicketModal.classList.remove('active');
-    pendingAttachments = [];
     toast(`Chamado #${tk.id} criado!`, 'success');
   }
 
@@ -1749,21 +1760,30 @@
     const t = tickets.find(x => x.id === id);
     const title = t?.title || id;
 
-    tickets = tickets.filter(x => x.id !== id);
-
-    D.confirmDialog.classList.remove('active');
-    D.detailModal.classList.remove('active');
-    clearTicketHash();
-
-    renderBoard();
-    deleteTicketId = null;
-    toast(`Chamado #${id} "${title}" excluído.`, 'info');
+    D.confirmOk.disabled = true;
+    D.confirmOk.textContent = 'Excluindo...';
 
     try {
-      await deleteTicketFromDB(id);
+      const cleanupErrors = await deleteTicketFromDB(id);
+
+      tickets = tickets.filter(x => x.id !== id);
+      D.confirmDialog.classList.remove('active');
+      D.detailModal.classList.remove('active');
+      clearTicketHash();
+      renderBoard();
+      toast(
+        cleanupErrors.length
+          ? `Chamado #${id} "${title}" excluído. Alguns anexos ou comentários não foram removidos.`
+          : `Chamado #${id} "${title}" excluído.`,
+        'info'
+      );
     } catch (error) {
       console.error('Erro ao excluir do Supabase:', error);
-      toast('Erro ao excluir do servidor. Recarregue a página.', 'error');
+      toast(`Não foi possível excluir o chamado: ${error.message}`, 'error');
+    } finally {
+      deleteTicketId = null;
+      D.confirmOk.disabled = false;
+      D.confirmOk.textContent = 'Excluir';
     }
   }
 
