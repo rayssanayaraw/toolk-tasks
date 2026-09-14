@@ -599,7 +599,7 @@
       const profile = profiles[0];
       if (!profile) throw new Error('Perfil de usuário não encontrado.');
 
-            user = { name: profile.name, email: authSession.user.email };
+            user = { name: profile.name, email: authSession.user.email, role: profile.role };
       return true;
     } catch (error) {
       console.error(error);
@@ -627,16 +627,21 @@
   }
 
   async function load() {
-    try {
-      const [remoteColumns, remoteTickets, remoteComments, remoteAttachments] = await Promise.all([
-        sbRequest('columns?select=*&order=position.asc'),
-        sbRequest('tickets?select=*'),
-        sbRequest('comments?select=*'),
-        sbRequest('attachments?select=id,ticket_id,comment_id,name'),
-      ]);
+    const results = await Promise.allSettled([
+      sbRequest('columns?select=*&order=position.asc'),
+      sbRequest('tickets?select=*'),
+      sbRequest('comments?select=*'),
+      sbRequest('attachments?select=id,ticket_id,comment_id,name,url'),
+    ]);
+    const [columnsResult, ticketsResult, commentsResult, attachmentsResult] = results;
+    const loadErrors = results.filter((result) => result.status === 'rejected');
+    const remoteColumns = columnsResult.status === 'fulfilled' ? columnsResult.value : [];
+    const remoteTickets = ticketsResult.status === 'fulfilled' ? ticketsResult.value : [];
+    const remoteComments = commentsResult.status === 'fulfilled' ? commentsResult.value : [];
+    const remoteAttachments = attachmentsResult.status === 'fulfilled' ? attachmentsResult.value : [];
 
-      columns = remoteColumns.length ? remoteColumns : [...DEFCOLS];
-      tickets = remoteTickets.map((ticket) => ({
+    columns = remoteColumns.length ? remoteColumns : [...DEFCOLS];
+    tickets = remoteTickets.map((ticket) => ({
         id: ticket.id,
         type: ticket.type,
         title: ticket.title,
@@ -662,15 +667,12 @@
         attachments: remoteAttachments
           .filter((attachment) => attachment.ticket_id === ticket.id && !attachment.comment_id)
           .map((attachment) => ({ name: attachment.name, data: attachment.url })),
-      }));
+    }));
 
-      tkCtr = tickets.reduce((max, ticket) => Math.max(max, parseInt(ticket.id, 10) || 0), 0) + 1;
-    } catch (error) {
-      console.error(error);
-      tickets = [];
-      columns = [...DEFCOLS];
-      tkCtr = 1;
-      toast('Não foi possível carregar os dados do Supabase.', 'error');
+    tkCtr = tickets.reduce((max, ticket) => Math.max(max, parseInt(ticket.id, 10) || 0), 0) + 1;
+    if (loadErrors.length) {
+      loadErrors.forEach((result) => console.error('Erro ao carregar dados:', result.reason));
+      toast('Alguns dados não puderam ser carregados. Tente novamente.', 'error');
     }
   }
 
@@ -690,7 +692,7 @@
           priority: ticket.priority,
           status: ticket.status,
           author: ticket.author,
-          author_role: 'admin',
+          author_role: ticket.authorRole || user?.role || 'user',
           created_at: ticket.createdAt,
           updated_at: ticket.updatedAt,
         }))
@@ -699,9 +701,9 @@
   }
 
   async function saveSingleTicket(ticket) {
-    await sbRequest('tickets?on_conflict=id', {
+    const savedTickets = await sbRequest('tickets?on_conflict=id', {
       method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates' },
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({
         id: ticket.id,
         type: ticket.type,
@@ -712,11 +714,15 @@
         priority: ticket.priority,
         status: ticket.status,
         author: ticket.author,
-        author_role: 'admin',
+        author_role: ticket.authorRole || user?.role || 'user',
         created_at: ticket.createdAt,
         updated_at: ticket.updatedAt,
       }),
     });
+
+    if (!Array.isArray(savedTickets) || savedTickets.length === 0) {
+      throw new Error('O Supabase não confirmou a gravação do chamado. Verifique as permissões da tabela tickets.');
+    }
   }
 
   async function updateTicketInDB(ticket) {
@@ -772,7 +778,8 @@
   }
 
   async function saveAttachments(ticket) {
-    if (!ticket.attachments?.length) return;
+    if (!ticket.attachments?.length) return [];
+    const errors = [];
 
     for (const attachment of ticket.attachments) {
       let url = attachment.data;
@@ -782,7 +789,7 @@
           url = await uploadToStorage(attachment.file, `tickets/${ticket.id}`);
         } catch (err) {
           console.error('[ATTACH] Upload FALHOU:', err);
-          toast('Erro no upload da imagem: ' + err.message, 'error');
+          errors.push(err);
           continue;
         }
       }
@@ -794,14 +801,16 @@
             ticket_id: ticket.id,
             comment_id: null,
             name: attachment.name,
-            url: url,
+            url,
           }),
         });
       } catch (err) {
-        console.error('[ATTACH] Erro ao salvar no banco:', err);
-        toast('Erro ao salvar anexo no banco: ' + err.message, 'error');
+        console.error('[ATTACH] Erro ao salvar anexo no banco:', err);
+        errors.push(err);
       }
     }
+
+    return errors;
   }
 
   async function saveComment(ticket, comment) {
@@ -1013,7 +1022,7 @@
         return;
       }
 
-            user = { name: profile.name, email: authSession.user.email };
+            user = { name: profile.name, email: authSession.user.email, role: profile.role };
     } catch (error) {
       authSession = null;
       D.loginError.textContent = error.message === 'Invalid login credentials'
@@ -1584,26 +1593,34 @@
       priority: pri,
       status: columns[0]?.id || 'backlog',
       author: user.name,
+      authorRole: user.role || 'user',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       comments: [],
       attachments: ticketAttachments,
     };
 
-    tickets.unshift(tk);
-    renderNotifications();
     saveSingleTicket(tk)
       .then(() => saveAttachments(tk))
+      .then((attachmentErrors) => {
+        tickets.unshift(tk);
+        renderNotifications();
+        renderBoard();
+        toast(
+          attachmentErrors.length
+            ? `Chamado #${tk.id} criado, mas ${attachmentErrors.length} anexo(s) não foram salvos.`
+            : `Chamado #${tk.id} criado!`,
+          attachmentErrors.length ? 'error' : 'success'
+        );
+      })
       .catch((error) => {
         console.error(error);
-        toast('Não foi possível salvar o chamado no Supabase.', 'error');
+        toast(`Não foi possível salvar o chamado: ${error.message}`, 'error');
       })
       .finally(() => {
         D.btnSubmitTicket.disabled = false;
         D.btnSubmitTicket.textContent = 'Criar Chamado';
       });
-    renderBoard();
-    toast(`Chamado #${tk.id} criado!`, 'success');
   }
 
   /* ═══════════════════════════════════════
@@ -1728,20 +1745,24 @@
     if (!moduleEl.value) { toast('Selecione um módulo.', 'error'); moduleEl.focus(); return; }
     if (!clientEl.value) { toast('Selecione um cliente.', 'error'); clientEl.focus(); return; }
 
-    t.title = title;
-    t.description = desc;
-    t.type = typeEl.value;
-    t.priority = priorityEl.value;
-    t.module = moduleEl.value;
-    t.client = clientEl.value;
-    t.updatedAt = new Date().toISOString();
+    const updatedTicket = {
+      ...t,
+      title,
+      description: desc,
+      type: typeEl.value,
+      priority: priorityEl.value,
+      module: moduleEl.value,
+      client: clientEl.value,
+      updatedAt: new Date().toISOString(),
+    };
 
     const saveBtn = document.getElementById('btnEditSave');
     saveBtn.disabled = true;
     saveBtn.textContent = 'Salvando...';
 
-    updateTicketInDB(t)
+    updateTicketInDB(updatedTicket)
       .then(() => {
+        Object.assign(t, updatedTicket);
         toast('Chamado atualizado com sucesso!', 'success');
         renderBoard();
         openDetail(tkId);
