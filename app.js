@@ -121,6 +121,7 @@
     notificationPanel: $('notificationPanel'),
     notificationCount: $('notificationCount'),
     notificationSummary: $('notificationSummary'),
+    notificationMarkAll: $('notificationMarkAll'),
     notificationList: $('notificationList'),
     btnNewTicket: $('btnNewTicket'),
     btnManageColumns: $('btnManageColumns'),
@@ -276,6 +277,7 @@
     D.notificationSummary.textContent = unreadTickets.length
       ? `${unreadTickets.length} nova${unreadTickets.length === 1 ? '' : 's'}`
       : 'Nenhuma nova';
+    D.notificationMarkAll.disabled = unreadTickets.length === 0;
 
     D.notificationList.innerHTML = sortedTickets.length
       ? sortedTickets.slice(0, 30).map((ticket) => `
@@ -294,6 +296,14 @@
     const readIds = getReadNotificationIds();
     readIds.add(String(ticketId));
     localStorage.setItem(notificationReadKey(), JSON.stringify([...readIds]));
+    renderNotifications();
+  }
+
+  function markAllNotificationsAsRead() {
+    const allIds = tickets
+      .filter((ticket) => ticket.createdAt)
+      .map((ticket) => String(ticket.id));
+    localStorage.setItem(notificationReadKey(), JSON.stringify(allIds));
     renderNotifications();
   }
 
@@ -2647,6 +2657,11 @@ function addShareButtonToModal(ticketId) {
       const isOpen = D.notificationWrapper.classList.toggle('open');
       D.notificationTrigger.setAttribute('aria-expanded', String(isOpen));
       D.notificationPanel.setAttribute('aria-hidden', String(!isOpen));
+    });
+
+    D.notificationMarkAll.addEventListener('click', (e) => {
+      e.stopPropagation();
+      markAllNotificationsAsRead();
     });
 
     D.notificationList.addEventListener('click', (e) => {

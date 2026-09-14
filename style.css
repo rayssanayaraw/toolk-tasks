@@ -438,6 +438,13 @@ body::before {
   border-bottom: 1px solid var(--surface-border);
 }
 
+.notification-panel-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
 .notification-panel-header strong {
   font-size: 0.9rem;
 }
@@ -445,6 +452,29 @@ body::before {
 .notification-panel-header span {
   color: var(--text-muted);
   font-size: 0.72rem;
+}
+
+.notification-mark-all {
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: 500 0.7rem 'Space Grotesk', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.notification-mark-all:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.notification-mark-all:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  text-decoration: none;
+  opacity: 0.65;
 }
 
 .notification-list {
