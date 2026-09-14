@@ -349,7 +349,26 @@
   const SB_AUTH_API = `${SB_PROJECT_URL}/auth/v1`;
   const SB_FUNCTIONS_API = `${SB_PROJECT_URL}/functions/v1`;
 
-  async function sbRequest(path, options = {}) {
+  async function refreshAuthSession() {
+    if (!authSession?.refresh_token) return false;
+
+    const refreshResponse = await fetch(`${SB_AUTH_API}/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: authSession.refresh_token }),
+    });
+
+    if (!refreshResponse.ok) return false;
+
+    authSession = await refreshResponse.json();
+    localStorage.setItem(SK.authSession, JSON.stringify(authSession));
+    return true;
+  }
+
+  async function sbRequest(path, options = {}, canRefresh = true) {
     const response = await fetch(`${SB_API}${path}`, {
       ...options,
       headers: {
@@ -359,6 +378,10 @@
         ...(options.headers || {}),
       },
     });
+
+    if (response.status === 401 && canRefresh && await refreshAuthSession()) {
+      return sbRequest(path, options, false);
+    }
 
     if (!response.ok) {
       throw new Error(`Supabase ${response.status}: ${await response.text()}`);
