@@ -1919,6 +1919,10 @@ addShareButtonToModal(id);
         <span class="detail-value">${esc(t.client || 'Não informado')}</span>
       </div>
       <div class="detail-item">
+        <span class="detail-label">Solicitante</span>
+        <span class="detail-value">${esc(t.requester || 'Não informado')}</span>
+      </div>
+      <div class="detail-item">
         <span class="detail-label">Status</span>
         <span class="detail-value">${esc(col?.name || t.status)}</span>
       </div>
