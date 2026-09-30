@@ -29,18 +29,24 @@
 }
 
 [data-theme='light'] {
-  --bg: #f1f3f5;
+  --bg: #f6f8f7;
   --bg-secondary: #ffffff;
   --surface: #ffffff;
-  --surface-hover: #e8ecef;
-  --surface-border: #cbd2d9;
-  --text-primary: #17202a;
-  --text-secondary: #46515c;
-  --text-muted: #68737e;
-  --text-accent: #45601a;
+  --surface-hover: #eef3ef;
+  --surface-border: #d7dfda;
+  --text-primary: #132019;
+  --text-secondary: #34453b;
+  --text-muted: #53635a;
+  --text-accent: #3d6115;
+  --accent: #a8e635;
+  --accent-hover: #91ce20;
+  --accent-glow: rgba(126, 170, 24, 0.2);
+  --bug-bg: rgba(220, 38, 38, 0.09);
+  --improvement-bg: rgba(5, 150, 105, 0.1);
+  --warning-bg: rgba(217, 119, 6, 0.1);
   --purple-bg: rgba(139, 92, 246, 0.1);
-  --shadow: 0 4px 24px rgba(34, 48, 16, 0.1);
-  --shadow-lg: 0 12px 48px rgba(34, 48, 16, 0.16);
+  --shadow: 0 4px 18px rgba(32, 52, 39, 0.08);
+  --shadow-lg: 0 14px 42px rgba(32, 52, 39, 0.14);
 }
 
 /* ═══════════════════════════════════════
@@ -75,8 +81,8 @@ body::before {
 
 [data-theme='light'] body::before {
   background:
-    radial-gradient(ellipse at 15% 10%, rgba(182, 236, 68, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 85% 80%, rgba(120, 135, 150, 0.06) 0%, transparent 50%);
+    radial-gradient(ellipse at 8% 0%, rgba(168, 230, 53, 0.1) 0%, transparent 42%),
+    radial-gradient(ellipse at 92% 90%, rgba(52, 125, 87, 0.07) 0%, transparent 46%);
 }
 
 /* ═══════════════════════════════════════
@@ -1228,9 +1234,9 @@ body::before {
 }
 
 .column-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px auto;
   align-items: center;
-  justify-content: space-between;
   padding: 16px 18px;
   border-bottom: 1px solid var(--surface-border);
   position: relative;
@@ -1252,6 +1258,7 @@ body::before {
 }
 
 .column-title {
+  min-width: 0;
   font-size: 0.88rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -1261,6 +1268,9 @@ body::before {
 }
 
 .column-count {
+  width: 36px;
+  justify-self: end;
+  text-align: center;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
   font-weight: 500;
@@ -1274,7 +1284,7 @@ body::before {
 .column-actions {
   display: flex;
   gap: 4px;
-  margin-left: 8px;
+  margin-left: 10px;
   opacity: 0;
   transition: opacity var(--transition);
 }
@@ -1949,6 +1959,23 @@ body::before {
 
 .new-ticket-modal .form-group {
   margin-bottom: 18px;
+}
+
+.new-ticket-modal .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.new-ticket-modal .form-row .form-group {
+  min-width: 0;
+}
+
+@media (max-width: 560px) {
+  .new-ticket-modal .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
 }
 
 .new-ticket-modal textarea {
@@ -3341,3 +3368,56 @@ body::before {
 .report-ranking-row strong { text-align: right; }
 .report-ranking-row em { color: var(--accent); font: 500 0.72rem 'JetBrains Mono', monospace; text-align: right; font-style: normal; }
 .report-empty { color: var(--text-muted); font-size: 0.84rem; }
+
+/* Light theme: softer surfaces keep the board readable without flattening it. */
+[data-theme='light'] .header {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 0 rgba(28, 55, 39, 0.04);
+}
+
+[data-theme='light'] .column {
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8px 24px rgba(32, 52, 39, 0.05);
+}
+
+[data-theme='light'] .card {
+  box-shadow: 0 2px 8px rgba(32, 52, 39, 0.04);
+}
+
+[data-theme='light'] .card:hover {
+  border-color: rgba(73, 126, 34, 0.38);
+  box-shadow: 0 8px 20px rgba(32, 52, 39, 0.1);
+}
+
+[data-theme='light'] .filter-type-group .filter-btn:hover,
+[data-theme='light'] .search-clear:hover {
+  background: var(--surface-hover);
+}
+
+[data-theme='light'] .btn-tool:hover,
+[data-theme='light'] .btn-report-view:hover,
+[data-theme='light'] .btn-report-view.active {
+  color: var(--text-accent);
+  background: rgba(168, 230, 53, 0.14);
+  border-color: rgba(91, 135, 33, 0.28);
+}
+
+[data-theme='light'] .report-kpi,
+[data-theme='light'] .report-panel {
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 4px 16px rgba(32, 52, 39, 0.04);
+}
+
+[data-theme='light'] .filter-date-clear {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+[data-theme='light'] .filter-date-clear:hover {
+  background: var(--accent-hover);
+}
+
+[data-theme='light'] .card-module {
+  color: #2f5b0b;
+  font-weight: 700;
+}

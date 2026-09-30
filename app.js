@@ -162,6 +162,7 @@
     ticketDesc: $('ticketDesc'),
     ticketModule: $('ticketModule'),
     ticketClient: $('ticketClient'),
+    ticketRequester: $('ticketRequester'),
     ticketPriority: $('ticketPriority'),
     btnSubmitTicket: $('btnSubmitTicket'),
     attachZone: $('attachZone'),
@@ -681,6 +682,7 @@
         description: ticket.description,
         module: ticket.module || '',
         client: ticket.client || '',
+        requester: ticket.requester || '',
         priority: ticket.priority,
         status: ticket.status,
         author: ticket.author,
@@ -722,6 +724,7 @@
           description: ticket.description,
           module: ticket.module || null,
           client: ticket.client || null,
+          requester: ticket.requester || null,
           priority: ticket.priority,
           status: ticket.status,
           author: ticket.author,
@@ -744,6 +747,7 @@
         description: ticket.description,
         module: ticket.module || null,
         client: ticket.client || null,
+        requester: ticket.requester || null,
         priority: ticket.priority,
         status: ticket.status,
         author: ticket.author,
@@ -768,6 +772,7 @@
         description: ticket.description,
         module: ticket.module || null,
         client: ticket.client || null,
+        requester: ticket.requester || null,
         priority: ticket.priority,
         status: ticket.status,
         updated_at: ticket.updatedAt,
@@ -1566,6 +1571,7 @@
     D.ticketDesc.value = '';
     D.ticketModule.value = '';
     D.ticketClient.value = '';
+    D.ticketRequester.value = '';
     D.ticketPriority.value = 'media';
     D.typeBug.className = 'type-option';
     D.typeImprovement.className = 'type-option';
@@ -1587,6 +1593,7 @@
     const desc = D.ticketDesc.value.trim();
     const module = D.ticketModule.value;
     const client = D.ticketClient.value;
+    const requester = D.ticketRequester.value.trim();
     const pri = D.ticketPriority.value;
 
     if (!selType) {
@@ -1623,6 +1630,7 @@
       description: desc,
       module,
       client,
+      requester,
       priority: pri,
       status: columns[0]?.id || 'backlog',
       author: user.name,
@@ -1719,6 +1727,10 @@
         </div>
       </div>
       <div class="detail-item">
+        <span class="detail-label">Solicitante</span>
+        <span class="detail-value">${esc(t.requester || 'Não informado')}</span>
+      </div>
+      <div class="detail-item">
         <span class="detail-label">Status</span>
         <span class="detail-value">${esc(col?.name || t.status)}</span>
       </div>
@@ -1786,6 +1798,7 @@
       priority: priorityEl.value,
       module: moduleEl.value,
       client: clientEl.value,
+      requester: t.requester || '',
       updatedAt: new Date().toISOString(),
     };
 
