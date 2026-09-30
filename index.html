@@ -37,11 +37,11 @@
       <p class="login-subtitle">Sistema de Chamados — entre para continuar</p>
       <div class="form-group">
         <label for="loginName">E-mail</label>
-        <input type="email" id="loginName" placeholder="nome@email.com" autocomplete="username">
+        <input type="email" id="loginName" placeholder="nome@email.com" autocomplete="off">
       </div>
       <div class="form-group password-group visible" id="passwordGroup" aria-hidden="false">
         <label for="loginPassword">Senha</label>
-        <input type="password" id="loginPassword" placeholder="Digite sua senha" autocomplete="current-password">
+        <input type="password" id="loginPassword" placeholder="Digite sua senha" autocomplete="off">
       </div>
       <button class="btn-login" id="btnLogin">Entrar</button>
       <a href="#" class="forgot-password-link" id="forgotPasswordLink">Esqueceu a senha?</a>
@@ -54,7 +54,7 @@
       <p class="recovery-instructions">Digite seu e-mail cadastrado. Enviaremos um link para criar uma nova senha.</p>
       <div class="form-group">
         <label for="recoveryEmail">E-mail</label>
-        <input type="email" id="recoveryEmail" placeholder="nome@email.com">
+        <input type="email" id="recoveryEmail" placeholder="nome@email.com" autocomplete="off">
       </div>
       <button class="btn-login" id="btnSendRecovery">Enviar link de redefinição</button>
       <a href="#" class="forgot-password-link" id="backToLogin">Voltar ao login</a>
@@ -507,7 +507,7 @@
           </div>
           <div class="form-group">
             <label for="ticketRequester">Solicitante</label>
-            <input type="text" id="ticketRequester" placeholder="Nome de quem solicitou" maxlength="120">
+            <input type="text" id="ticketRequester" placeholder="Nome de quem solicitou" maxlength="120" autocomplete="off">
           </div>
         </div>
         <div class="form-group">
